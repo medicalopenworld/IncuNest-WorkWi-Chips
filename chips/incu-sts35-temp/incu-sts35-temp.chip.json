@@ -1,0 +1,23 @@
+{
+  "name": "Incu STS35 Temperature Sensor",
+  "author": "IncuNest Project",
+  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "controls": [
+    {
+      "id": "temperature",
+      "label": "Air Temperature (°C)",
+      "type": "range",
+      "min": -20,
+      "max": 70,
+      "step": 0.1
+    },
+    {
+      "id": "address",
+      "label": "I2C Address (74=0x4A, 75=0x4B)",
+      "type": "range",
+      "min": 74,
+      "max": 75,
+      "step": 1
+    }
+  ]
+}

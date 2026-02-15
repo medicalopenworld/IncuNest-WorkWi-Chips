@@ -1,0 +1,47 @@
+{
+  "name": "Incu INA3221 Current Sensor",
+  "author": "IncuNest Project",
+  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "controls": [
+    {
+      "id": "address",
+      "label": "I2C Address (64=0x40, 65=0x41)",
+      "type": "range",
+      "min": 64,
+      "max": 65,
+      "step": 1
+    },
+    {
+      "id": "ch1Current",
+      "label": "CH1 Current (A)",
+      "type": "range",
+      "min": 0,
+      "max": 15,
+      "step": 0.1
+    },
+    {
+      "id": "ch2Current",
+      "label": "CH2 Current (A)",
+      "type": "range",
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+    {
+      "id": "ch3Current",
+      "label": "CH3 Current (A)",
+      "type": "range",
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+    {
+      "id": "busVoltage",
+      "label": "Bus Voltage (V)",
+      "type": "range",
+      "min": 0,
+      "max": 24,
+      "step": 0.1
+    }
+  ]
+}

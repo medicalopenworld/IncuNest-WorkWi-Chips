@@ -1,0 +1,18 @@
+{
+  "name": "incunest-wokwi-chips",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mono-repo for IncuNest Wokwi simulator chips, examples, and 3D viewer",
+  "workspaces": [
+    "chips/*",
+    "examples/*",
+    "viewer-3d"
+  ],
+  "scripts": {
+    "validate:configs": "node tools/validate-configs.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "CC-BY-NC-4.0"
+}

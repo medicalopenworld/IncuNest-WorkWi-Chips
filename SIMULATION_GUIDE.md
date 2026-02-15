@@ -1173,3 +1173,360 @@ Este proyecto de simulación se distribuye bajo la misma licencia que IncuNest:
 Atribución: "Medicina Abierta al Mundo – IncuNest Project"
 
 Para uso comercial, contactar: info@medicalopenworld.org
+
+---
+
+## Registro consolidado de acciones (implementación real)
+
+### 2026-02-14 — Implementación funcional del simulador
+
+Se ejecutaron y completaron las siguientes acciones en este repositorio:
+
+1. **Estructura mono-repo creada**
+   - Directorios creados: `chips/`, `shared/`, `examples/`, `viewer-3d/`, `tools/`
+   - Archivos base añadidos: `package.json`, `.gitignore`, `README.md`
+
+2. **Librerías y utilidades compartidas añadidas**
+   - `shared/thermal-model.h`
+   - `shared/ntc-tables.h`
+   - `shared/pid-reference.h`
+   - `shared/utils.h`
+
+3. **9 custom chips implementados (JSON + C + README)**
+   - `incu-ntc-skin`
+   - `incu-sts35-temp`
+   - `incu-sht4x-env`
+   - `incu-heater-ssr`
+   - `incu-fan-pwm`
+   - `incu-humidifier`
+   - `incu-ina3221`
+   - `incu-buzzer-alarm`
+   - `incu-door-touch`
+
+4. **Escenarios Wokwi funcionales creados**
+   - `examples/full-incubator-demo/{wokwi.toml, diagram.json, README.md}`
+   - `examples/heater-pid-only/{wokwi.toml, diagram.json, README.md}`
+   - `examples/sensor-suite/{wokwi.toml, diagram.json, README.md}`
+
+5. **Tooling de soporte añadido**
+   - `tools/build-chips.sh` para compilación masiva de chips C -> `.chip.wasm`
+   - `tools/validate-configs.mjs` para validar JSON/TOML del repo
+
+6. **App Next.js 3D implementada y funcional**
+   - Estructura completa en `viewer-3d/` (Next.js App Router + TypeScript)
+   - Visor 3D con React Three Fiber y fallback visual si falta `incubator.glb`
+   - Panel de telemetría y estado de alarmas
+   - Hook de telemetría simulada para pruebas end-to-end
+
+7. **Verificación ejecutada**
+   - Validación de configuración: `node tools/validate-configs.mjs` ✅
+   - Build producción del frontend: `npm --prefix viewer-3d run build` ✅
+   - Resultado: compilación correcta y páginas estáticas generadas
+
+8. **Corrección operativa Wokwi (binarios no encontrados)**
+   - Se añadieron `.chip.wasm` placeholder válidos para los 9 chips en `chips/*/*.chip.wasm`
+   - Se añadió `tools/generate-placeholder-wasm.mjs`
+   - Se actualizó `tools/build-chips.sh` para fallback automático a placeholders cuando no existe `wokwi-chip-builder`
+   - Se ajustaron rutas en `examples/*/wokwi.toml` a formato robusto (`chips/...`, `Incunest_v15/...`)
+   - Se crearon symlinks locales por ejemplo (`chips` e `Incunest_v15`) para que funcione tanto abriendo la raíz como la carpeta del ejemplo en VS Code
+
+9. **Corrección operativa visor 3D (GLB faltante)**
+   - Se generó `viewer-3d/public/models/incubator.glb` a partir de `Incunest_v15/Mechanical/IN3_structure_v15.step`
+   - Se añadió `tools/convert-step-to-glb.py` para regeneración reproducible del GLB
+   - Se documentó el flujo en `README.md` y `viewer-3d/README.md`
+
+10. **Corrección runtime Next.js (hydration mismatch)**
+   - Se eliminó la fuente no determinista SSR/CSR en estado inicial (`timestampMs: Date.now()` -> `timestampMs: 0`)
+   - Se ajustó `StatusPanel` para render seguro de hora en cliente (`isClient` + `suppressHydrationWarning`)
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+11. **Actualización a últimas versiones de librerías frontend**
+   - `next` -> `16.1.6`
+   - `react` / `react-dom` -> `19.2.4`
+   - `@react-three/fiber` -> `9.5.0`
+   - `@react-three/drei` -> `10.7.7`
+   - `three` -> `0.182.0`
+   - `zustand` -> `5.0.11`
+   - tipos y toolchain TypeScript actualizados
+   - ajuste de compatibilidad Next 16: `page.tsx` como Client Component y `turbopack.root` apuntando al workspace root
+   - verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+12. **Corrección de depuración Wokwi (`gdbServerPort`)**
+   - Se añadió `gdbServerPort` en todos los ejemplos:
+     - `examples/full-incubator-demo/wokwi.toml` -> `3333`
+     - `examples/heater-pid-only/wokwi.toml` -> `3334`
+     - `examples/sensor-suite/wokwi.toml` -> `3335`
+   - Objetivo: permitir arranque en modo debug desde VS Code sin error de configuración faltante
+
+13. **Corrección de hidratación por atributos inyectados por extensiones**
+   - Error detectado: mismatch en `body` por atributo inyectado en cliente (`data-atm-ext-installed`)
+   - Se actualizó `viewer-3d/src/app/layout.tsx` para usar `suppressHydrationWarning` en `<body>`
+   - Objetivo: evitar warning de hidratación cuando una extensión del navegador modifica el DOM antes de hidratar
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+14. **Corrección de visibilidad del GLB en visor 3D**
+   - Se detectó modelo fuera de encuadre/escala poco manejable para cámara inicial
+   - Se actualizó `incubator-viewer.tsx`:
+     - centrado explícito del GLB con `Center`
+     - cámara inicial más amplia y `OrbitControls` con rango extendido
+     - fallback visual de carga durante `Suspense`
+   - Se regeneró `incubator.glb` con menor densidad de malla (≈629k caras en vez de ≈4.8M)
+     para mejorar carga/render (`tools/convert-step-to-glb.py` con tolerancia por defecto optimizada)
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+15. **Optimización UX del visor 3D**
+   - Instrucciones movidas a tooltip de ayuda (`Ayuda`) para liberar espacio visual
+   - Telemetría convertida a layout horizontal (`StatusPanel` con `orientation=\"horizontal\"`)
+   - Área del visor ampliada para priorizar visualización del GLB
+   - Navegación 3D mejorada en `OrbitControls`:
+     - giro, zoom y desplazamiento (pan) habilitados
+     - damping y límites ajustados para interacción más fluida
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+16. **Ajuste fino de cabecera UX**
+   - Título principal ampliado para aprovechar mejor el ancho disponible en la barra superior
+   - Botón de ayuda simplificado a icono único (`?`) manteniendo tooltip de instrucciones
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+17. **Ajuste de layout para título/subtítulo en una línea**
+   - Se ajustó la cabecera para evitar saltos de línea no deseados:
+     - `h1` con `white-space: nowrap`, menor `letter-spacing` y escala tipográfica optimizada
+     - subtítulo (`hero-copy`) en una sola línea usando todo el ancho disponible
+   - Se afinó `topbar`/`topbar__brand` para mejor aprovechamiento horizontal
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+18. **Corrección de superposición tooltip de ayuda**
+   - Se corrigió el apilado visual para que el tooltip de ayuda quede por encima de telemetría y visor
+   - Ajustes aplicados:
+     - `topbar` con `position: relative`, `z-index` alto e `isolation: isolate`
+     - `help-tooltip` y `help-tooltip__content` con z-index superior
+     - `status-strip` y `viewer-section` con capas inferiores explícitas
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+19. **Layout sin scroll y visor a pantalla completa útil**
+   - Se eliminó scroll vertical global para la pantalla del visor (`html, body { overflow: hidden; }`)
+   - Se configuró el layout principal para ocupar exactamente el alto de viewport:
+     - `page-shell` con `height: 100dvh` y filas `auto auto minmax(0, 1fr)`
+   - Se hizo que el bloque del objeto use el espacio restante hasta el final:
+     - `viewer-section` y `viewer-wrap` con `height: 100%` y `min-height: 0`
+   - Se ajustó el estado de carga para respetar ese alto sin forzar overflow
+   - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+20. **Controles de cámara en esquina (fallback UX)**
+    - Se añadieron controles visibles en la esquina del visor para interacción directa:
+      - zoom in/out, reset de vista, giro izquierda/derecha, desplazamiento (nudge)
+    - Objetivo: asegurar control de navegación aun cuando interacción de ratón/trackpad falle
+    - Se mantuvo `OrbitControls` para interacción normal + botones de respaldo
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+21. **Corrección de controles no responsivos (cursor + botones)**
+    - Se sustituyó `OrbitControls` por `CameraControls` en `viewer-3d/src/components/incubator-viewer.tsx`
+      para un control de cámara más robusto con Next/React 19.
+    - Se movió la carga del GLB a un `Suspense` local del modelo, manteniendo los controles de cámara
+      siempre montados (evita que queden deshabilitados durante carga del modelo).
+    - Los botones de esquina ahora usan API nativa de cámara (`dolly`, `rotate`, `truck`, `reset`)
+      en lugar de manipular manualmente vectores de cámara.
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+22. **Ajuste de orientación y transparencia del modelo 3D**
+    - Se aplicó rotación por defecto de 90° en eje vertical para la incubadora (GLB y fallback).
+    - Se hizo translúcido el material del modelo GLB para permitir ver el interior de la incubadora.
+    - Implementación en `viewer-3d/src/components/incubator-viewer.tsx` con clon del `scene` y ajuste de materiales.
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+23. **Rotación en eje Z + tooltips + vista explotada**
+    - Se cambió la orientación por defecto a 90° en eje **Z** (GLB y fallback visual).
+    - Se añadieron tooltips visuales en los botones de controles de cámara para explicar cada acción.
+    - Se añadió opción de **separar/unir partes** (`⧉`) que aplica una vista explotada del modelo hacia afuera.
+    - Implementación en:
+      - `viewer-3d/src/components/incubator-viewer.tsx`
+      - `viewer-3d/src/app/globals.css`
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+24. **Corrección de orientación final en eje X**
+    - Se ajustó la orientación por defecto desde eje Z a **90° en eje X** para evitar vista lateral.
+    - Cambio aplicado tanto al modelo GLB como al fallback visual.
+    - Implementación en `viewer-3d/src/components/incubator-viewer.tsx`.
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+25. **Corrección de inversión (modelo boca abajo)**
+    - Se invirtió el signo de la rotación en eje X a **-90°** para dejar la incubadora en posición correcta.
+    - Cambio aplicado tanto al modelo GLB como al fallback visual.
+    - Implementación en `viewer-3d/src/components/incubator-viewer.tsx`.
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+26. **Simplificación de transformaciones del visor**
+    - Se unificaron constantes de transformación para evitar valores mágicos repetidos (`rotación`, `escala`, `explode`).
+    - Se simplificó el fallback 3D para no reescribir la rotación X en cada frame; ahora mantiene base fija y solo anima Y.
+    - Se reutilizó la misma base de rotación/escala entre GLB y fallback para mantener coherencia y facilitar mantenimiento.
+    - Implementación en `viewer-3d/src/components/incubator-viewer.tsx`.
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+27. **Retirada de opción de separar partes + viabilidad de compuertas circulares**
+    - Se eliminó el control UI de “separar partes” del visor y su estado asociado.
+    - Se eliminó también la lógica de explosión del modelo para dejar el visor más simple y mantenible.
+    - Se limpiaron estilos CSS asociados al control eliminado.
+    - Se evaluó viabilidad de abrir huecos circulares por bisagra en el GLB actual:
+      - El modelo cargado contiene 1 sola malla (sin piezas independientes ni nodos por compuerta).
+      - Con esta topología no es posible animar bisagras reales por pieza sin preparar un GLB segmentado.
+    - Implementación/ajustes en:
+      - `viewer-3d/src/components/incubator-viewer.tsx`
+      - `viewer-3d/src/app/globals.css`
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+28. **Diagnóstico de error VS Code/Wokwi al abrir diagramas**
+    - Se validaron localmente todos los `diagram.json` y `wokwi.toml` del repositorio: válidos (`tools/validate-configs.mjs` ✅).
+    - El stack de error observado (`UpdateService.update` en `wokwi.wokwi-vscode`) apunta a fallo de red/respuesta no JSON (truncada o inválida), no a JSON corrupto del proyecto.
+    - Se identificó además un error independiente de sesión en Copilot (`Invalid se... is not valid JSON`) que confirma problema de autenticación/red en extensiones.
+
+29. **Extracción de piezas del STEP y vista interactiva por componentes**
+    - Se analizó la jerarquía del fichero STEP (`IN3_structure_v15.step`) con XCAF/OCP:
+      - 1 ensamblaje raíz con 6 subensamblajes principales
+      - ~34 piezas significativas incluyendo 4× `Window_door` (compuertas circulares)
+    - Se creó `tools/convert-step-to-segmented-glb.py` que genera un GLB multi-nodo con cada pieza como nodo independiente nombrado.
+    - Se generó `viewer-3d/public/models/incubator-parts.glb` (15.2 MB, 34 nodos).
+    - Se creó `viewer-3d/src/components/parts-viewer.tsx`:
+      - Carga el GLB segmentado y asigna materiales translúcidos individuales.
+      - Hover resalta pieza en verde; clic la selecciona en amarillo.
+      - Muestra nombre legible de la pieza seleccionada/hovered (con diccionario de traducciones).
+      - Mismos controles de cámara (CameraControls + botones en esquina).
+    - Se añadió toggle "Vista general" / "Piezas" en la cabecera (`page.tsx` + CSS).
+    - Verificación ejecutada: `npm --prefix viewer-3d run build` ✅
+
+30. **Corrección de posicionamiento de piezas en GLB segmentado** (2026-02-15)
+    - **Problema**: Las piezas del `incubator-parts.glb` no aparecían en su posición correcta dentro del ensamblaje. La causa era que el script de conversión STEP→GLB no componía las transformaciones (ubicación/rotación) de la jerarquía de ensamblaje.
+    - **Diagnóstico**: En XCAF/OCP, `st.GetShape_s(component_label)` sólo incluye la ubicación del componente inmediato, NO la cadena de ancestros. Al extraer sub-partes de un ensamblaje como "Structure", las piezas se posicionaban en el marco de referencia del prototipo, no en coordenadas mundo.
+    - **Solución en `convert-step-to-segmented-glb.py`**:
+      - Se implementó composición recursiva de transformaciones: `parent_world_loc.Multiplied(sub_loc)` para cada nivel.
+      - Se usa `shape.Located(world_loc)` para reubicar cada pieza en coordenadas mundo antes de teselar.
+      - Se añadió agrupación inteligente: sub-ensamblajes complejos (motherboard=633 componentes, humidificador=81, PSU=19, sensores=20) se fusionan en una sola pieza cada uno.
+      - Se mantienen las 4 Window_door como una sola pieza fusionada (ya con todas las instancias en posición correcta).
+    - **Resultado**: 23 piezas bien posicionadas (vs 845 sin agrupar), 15.2 MB.
+    - **Validación**: Build `npm --prefix viewer-3d run build` ✅ + nombres de nodos actualizados en `parts-viewer.tsx`.
+
+31. **Compuertas circulares independientes y materiales correctos** (2026-02-15)
+    - Las 4 `Window_door` ahora son piezas independientes (`Window_door_v1_1` a `_4`), cada una seleccionable individualmente.
+    - Se añadieron 3 materiales al GLB:
+      - Material 0 (default): teal semitransparente para piezas genéricas.
+      - Material 1 (door_white): blanco opaco para las compuertas circulares.
+      - Material 2 (glass): gris transparente (alpha 0.35, alphaMode BLEND) para el metacrilato.
+    - En `parts-viewer.tsx` se preservan los materiales del GLB: puertas blancas opacas, metacrilato gris cristal, y hover/selección sólo cambia el color temporalmente.
+    - `convert-step-to-segmented-glb.py`: añadida lista `INDIVIDUAL_INSTANCES` para piezas que no se deben fusionar por nombre + función `get_material_index()`.
+    - Resultado: 26 piezas (23 + 3 puertas adicionales).
+
+32. **Paneles PE-300 blancos y escena realista** (2026-02-15)
+    - `PE-300 10mm` y `PE-300 5mm` ahora usan material blanco opaco (mismo que compuertas).
+    - Iluminación mejorada en ambas vistas (overview y piezas):
+      - Ambiente cálido (`#f5f5f0`, intensidad 0.6).
+      - Luz direccional principal blanca (intensidad 1.8) con sombra.
+      - Contra-luz suave azulada.
+      - `hemisphereLight` para relleno cielo/suelo.
+      - `Environment preset="studio"` para reflejos realistas.
+    - `ContactShadows` más amplias (scale 10, blur 2.5).
+
+33. **Fix escena vacía por errores de iluminación R3F** (2026-02-15)
+    - `hemisphereLight args=[...]` causaba error silencio → reemplazado por props explícitos (`color`, `groundColor`, `intensity`).
+    - `castShadow` + `shadow-mapSize` sin `shadows` habilitado en Canvas → eliminados.
+    - `Environment preset="studio"` puede fallar si no descarga HDR → cambiado a `"apartment"`.
+    - Ambas vistas (overview y piezas) corregidas con la misma iluminación.
+
+34. **PETG 0.8mm dividida en 2 piezas** (2026-02-15)
+    - El componente STEP `PETG 0.8mm` contiene 3 sólidos internos; 2 de ellos son la misma pieza (inner/outer face) agrupados por proximidad (<20mm de distancia entre centros).
+    - Resultado: `PETG_0.8mm_1` y `PETG_0.8mm_2` como nodos independientes en el GLB.
+    - Se añadió mecanismo `SPLIT_BY_SOLID` en el conversor para descomponer un shape en sus sólidos constituyentes y agrupar por proximidad.
+
+35. **Sistema cinemático: modos selección/movimiento y tapa articulada** (2026-02-15)
+    - Vista "Piezas" ahora tiene dos modos de interacción (toggle en esquina superior izquierda):
+      - 🔍 **Seleccionar**: hover/clic para inspeccionar piezas (comportamiento original).
+      - ✋ **Mover**: clic en tapa/pomo/PETG/sensores abre/cierra la tapa con animación suave.
+    - Grupo cinemático de la tapa (`LID_GROUP_NAMES`):
+      - `PE-300_5mm` (tapa), `PETG_0.8mm_1` (frontal transparente), `PomoV3_v1` (pomo), `Sensor_holder_v3` (sensores internos).
+    - Bisagra: pivote en borde posterior de la tapa (STEP coords 208, 640, 246), rotación alrededor del eje STEP-X.
+    - Apertura máxima: 80°. Animación interpolada con `useFrame` (lerp ×5 delta).
+    - Pomo color rojizo: material 3 (`handle_red`, baseColor [0.78, 0.22, 0.18]) en GLB y en el viewer.
+    - Transform chain: outer-group(translate to pivot) → lidGroupRef(rotate X) → inner-group(translate back) → meshes.
+
+36. **Corrección: PETG no se movía con la tapa** (2026-02-15)
+    - El nombre del mesh PETG en el GLB era `Structure__PETG_08mm_1` (sin punto en `0.8`), porque glTF sanitiza caracteres.
+    - `LID_GROUP_NAMES` usaba `Structure__PETG_0.8mm_1` (con punto), por lo que nunca coincidía.
+    - Fix: actualizado el Set y el mapa de labels para usar `PETG_08mm` sin punto.
+    - Eliminados `console.log` de debug usados para diagnosticar.
+
+37. **Panel PE-300 5mm superior dividido en dos mitades** (2026-02-15)
+    - El panel superior (PE-300 5mm) contenía dos sólidos a Z≈394: mitad trasera (Y[273-308]) y mitad frontal (Y[221-271]), que se agrupaban con threshold=100mm.
+    - Reducido `SPLIT_BY_SOLID` threshold de 100mm → 30mm para PE-300 5mm, separando los 4 sólidos:
+      - `_1`: mitad trasera del panel superior (fija, soporte de la bisagra)
+      - `_2`: panel trasero vertical (Y≈637)
+      - `_3`: mitad frontal del panel superior (abatible, se dobla con la tapa)
+      - `_4`: panel frontal/tapa vertical (Y≈4, con pomo)
+    - Actualizado `LID_GROUP_NAMES`: eliminado `_1` (ahora fijo), añadidos `_3` (mitad frontal) y `_4` (tapa).
+    - Pivote de bisagra movido a STEP (207, 273, 394) — el borde entre ambas mitades del panel superior.
+    - Labels actualizados para reflejar las 4 piezas PE-300 5mm.
+    - Resultado: 30 piezas en el GLB (antes 29).
+
+38. **Modo mover: solo el pomo activa la tapa** (2026-02-15)
+    - En modo ✋ Mover, antes cualquier pieza del grupo lid activaba la apertura.
+    - Añadido `LID_TRIGGER_NAMES` con solo el pomo como pieza activadora.
+    - Las demás piezas del lid (PE-300, PETG, Sensor_holder) se mueven con la tapa pero no la accionan.
+    - El cursor "grab" solo aparece al pasar sobre el pomo en modo mover.
+
+39. **Compuertas circulares con pomo individual y apertura independiente** (2026-02-15)
+    - Cada `Window_door v1` (assembly STEP) contiene 3 hijos: `Anillo v5 v1`, `Handle v1`, `SOLID`.
+    - Nuevo mecanismo `SPLIT_CHILD_PATTERNS` en el conversor: hijos que coincidan con el patrón (`Handle`) se extraen como nodos GLB separados; los demás se fusionan en el body.
+    - Resultado: 34 piezas en GLB (antes 30). 4 door bodies + 4 door handles separados.
+    - Handles tienen material 3 (rojo, igual que PomoV3). Bodies siguen con material 1 (blanco).
+    - `DOOR_CONFIGS` define 4 puertas con: body name, handle name, pivot (bisagra en borde interior X), ángulo de apertura 90°.
+    - Puertas derechas (X≈401): giran positivo en Z (swing outward). Puertas izquierdas (X≈16): giran negativo en Z.
+    - `DOOR_TRIGGER_NAMES`: solo los handles (pomo rojo) activan la apertura en modo ✋ Mover.
+    - Cada puerta se abre/cierra de forma independiente con animación suave.
+    - Transform chain por puerta: `<group position={pivot}> → <group ref={doorRef} rotation-z> → <group position={-pivot}> → meshes`.
+
+40. **Compuertas: Anillo separado y bisagras corregidas** (2026-02-15)
+    - Cada `Window_door` tiene 3 subpiezas STEP: Anillo (ring fijo), Handle (pomo rojo), SOLID (panel puerta).
+    - Añadido `Anillo` a `SPLIT_CHILD_PATTERNS` para separarlo como nodo GLB independiente.
+    - El Anillo queda **estático** (no está en DOOR_NAMES); solo el panel + handle giran.
+    - Pivote corregido: la bisagra está en el borde Y **opuesto** al pomo (no en el centro).
+      - Puerta 1 (derecha-trasera): hinge Y≈525, pivotX=417
+      - Puerta 2 (derecha-delantera): hinge Y≈117, pivotX=417
+      - Puerta 3 (izquierda-delantera): hinge Y≈117, pivotX=5
+      - Puerta 4 (izquierda-trasera): hinge Y≈525, pivotX=5
+    - 38 piezas en GLB (antes 34): +4 Anillos separados.
+    - Labels actualizados para las 12 piezas de compuerta (4×panel + 4×pomo + 4×anillo).
+
+41. **Materiales realistas para piezas interiores** (2026-02-15)
+    - Antes, todas las piezas interiores eran teal semitransparente (opacity=0.55, depthWrite=false), haciéndolas casi invisibles.
+    - Nuevo esquema de colores por tipo de pieza:
+      - Colchón (Matress): beige/crema, opaco
+      - Placa electrónica (Electronic_support): verde PCB, opaco
+      - Botella (Bottle): azul claro, semi-transparente (0.7)
+      - Tornillería/varillas (Fasteners, Threaded_Rods): gris metálico, opaco
+      - Piezas 3D print (Distanciador, Sensor_holder, Tobera, TapaCables, PSU, humidifier, Window_blocker): beige claro, opaco
+      - Conectores (USB-C, CrowPanel, Cables_Entry): gris metálico, opaco
+      - PETG: gris cristal, semi-transparente (0.4)
+      - Metacrilato: gris cristal, transparente (0.3)
+    - Todas las piezas no-transparentes ahora son `opacity=1.0` y `depthWrite=true`, lo que las hace visibles dentro de la incubadora.
+
+42. **Extracción de piezas al seleccionar** (2026-02-15)
+    - En modo 🔍 Seleccionar, al hacer clic en una pieza estática, esta se desliza hacia arriba 200mm (STEP Z+) saliendo de la incubadora para poder ver el interior.
+    - Al deseleccionar (clic de nuevo), la pieza vuelve suavemente a su posición original.
+    - Animación interpolada con `useFrame` (lerp ×5 delta) por pieza independiente.
+    - Estructura STEP: Matress (24 verts, caja 352×451×30mm), Bottle (10391 verts, sólido único con geometría interna integrada), Distanciador_cama (204 verts, 2 instancias).
+
+43. **PE-300 10mm dividido en 12 piezas estructurales** (2026-02-15)
+    - El panel PE-300 10mm contenía 12 sólidos en una sola pieza. Ahora cada uno es un nodo GLB independiente.
+    - Clasificación automática por geometría en el conversor:
+      - `base`: placa inferior (416×634×10mm, Z≈22)
+      - `shelf`: bandeja/cama interior (395×548×9mm, Z≈106)
+      - `side_R` / `side_L`: paredes laterales completas (10×634×450mm)
+      - `side_R_inner` / `side_L_inner`: paredes interiores (10×279×335mm)
+      - `wall_front_47` / `wall_front_121`: paredes frontales inferior/superior
+      - `wall_back_80` / `wall_back_177`: paredes traseras inferior/superior
+      - `ledge_back_385` / `ledge_front_385`: rebordes superiores
+    - Resultado: 49 piezas en GLB (antes 38). Labels descriptivos en español para cada subpieza.
+
+44. **Colchón deslizable en modo mano + interacción por modos** (2026-02-15)
+    - Modo ✋ Mano: colchón se desliza hacia fuera (STEP Y-, 300mm) al pulsarlo.
+    - `SLIDE_CONFIGS` con dirección y distancia por pieza.
+    - `isMoveTrigger()` centraliza la lógica de qué piezas son interactivas en modo mano.
+    - Modo 🔍 Lupa: solo selecciona/resalta, nunca mueve piezas.
+    - Tooltips CSS añadidos a los botones de modo.

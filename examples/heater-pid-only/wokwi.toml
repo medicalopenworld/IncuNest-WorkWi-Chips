@@ -1,0 +1,12 @@
+[wokwi]
+version = 1
+firmware = "Incunest_v15/Firmware/MotherBoard/firmware.bin"
+gdbServerPort = 3334
+
+[[chip]]
+name = "incu-ntc-skin"
+binary = "chips/incu-ntc-skin/incu-ntc-skin.chip.wasm"
+
+[[chip]]
+name = "incu-heater-ssr"
+binary = "chips/incu-heater-ssr/incu-heater-ssr.chip.wasm"

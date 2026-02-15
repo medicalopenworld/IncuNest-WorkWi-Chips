@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "author": "IncuNest",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp32",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-ntc-skin",
+      "id": "ntc",
+      "top": -120,
+      "left": 320,
+      "attrs": {
+        "temperature": "36.5"
+      }
+    },
+    {
+      "type": "chip-incu-heater-ssr",
+      "id": "heater",
+      "top": 40,
+      "left": 320,
+      "attrs": {
+        "ambientTemp": "25",
+        "thermalMass": "2"
+      }
+    }
+  ],
+  "connections": [
+    ["esp32:3V3", "ntc:VCC", "red", []],
+    ["esp32:GND.1", "ntc:GND", "black", []],
+    ["esp32:39", "ntc:OUT", "green", []],
+    ["esp32:3V3", "heater:VCC", "red", []],
+    ["esp32:GND.1", "heater:GND", "black", []],
+    ["esp32:27", "heater:PWM_IN", "orange", []]
+  ]
+}

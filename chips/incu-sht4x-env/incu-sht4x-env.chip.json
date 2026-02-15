@@ -1,0 +1,23 @@
+{
+  "name": "Incu SHT4x Environment Sensor",
+  "author": "IncuNest Project",
+  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "controls": [
+    {
+      "id": "temperature",
+      "label": "Ambient Temperature (°C)",
+      "type": "range",
+      "min": -20,
+      "max": 80,
+      "step": 0.1
+    },
+    {
+      "id": "humidity",
+      "label": "Ambient Humidity (%)",
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    }
+  ]
+}

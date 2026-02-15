@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "author": "IncuNest",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp32",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-sts35-temp",
+      "id": "sts35a",
+      "top": -140,
+      "left": 300,
+      "attrs": {
+        "temperature": "34",
+        "address": "74"
+      }
+    },
+    {
+      "type": "chip-incu-sht4x-env",
+      "id": "sht4x",
+      "top": -30,
+      "left": 300,
+      "attrs": {
+        "temperature": "25",
+        "humidity": "50"
+      }
+    },
+    {
+      "type": "chip-incu-ina3221",
+      "id": "ina",
+      "top": 90,
+      "left": 300,
+      "attrs": {
+        "address": "65"
+      }
+    }
+  ],
+  "connections": [
+    ["esp32:3V3", "sts35a:VCC", "red", []],
+    ["esp32:GND.1", "sts35a:GND", "black", []],
+    ["esp32:22", "sts35a:SCL", "purple", []],
+    ["esp32:21", "sts35a:SDA", "blue", []],
+    ["esp32:3V3", "sht4x:VCC", "red", []],
+    ["esp32:GND.1", "sht4x:GND", "black", []],
+    ["esp32:22", "sht4x:SCL", "purple", []],
+    ["esp32:21", "sht4x:SDA", "blue", []],
+    ["esp32:3V3", "ina:VCC", "red", []],
+    ["esp32:GND.1", "ina:GND", "black", []],
+    ["esp32:22", "ina:SCL", "purple", []],
+    ["esp32:21", "ina:SDA", "blue", []]
+  ]
+}

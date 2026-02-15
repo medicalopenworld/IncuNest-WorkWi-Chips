@@ -1,0 +1,23 @@
+{
+  "name": "Incu Humidifier Slave",
+  "author": "IncuNest Project",
+  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "controls": [
+    {
+      "id": "waterLevel",
+      "label": "Water Level (%)",
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "id": "address",
+      "label": "I2C Address",
+      "type": "range",
+      "min": 32,
+      "max": 127,
+      "step": 1
+    }
+  ]
+}

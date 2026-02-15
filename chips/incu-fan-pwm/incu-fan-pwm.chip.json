@@ -1,0 +1,15 @@
+{
+  "name": "Incu Fan PWM",
+  "author": "IncuNest Project",
+  "pins": ["VCC", "GND", "PWM_IN", "TACH_OUT", "EN"],
+  "controls": [
+    {
+      "id": "maxRpm",
+      "label": "Max RPM",
+      "type": "range",
+      "min": 1000,
+      "max": 5000,
+      "step": 50
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "author": "IncuNest",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp32",
+      "top": 0,
+      "left": -10,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-ntc-skin",
+      "id": "ntc",
+      "top": -230,
+      "left": 350,
+      "attrs": {
+        "temperature": "36.5"
+      }
+    },
+    {
+      "type": "chip-incu-sts35-temp",
+      "id": "sts35a",
+      "top": -160,
+      "left": 350,
+      "attrs": {
+        "temperature": "34.0",
+        "address": "74"
+      }
+    },
+    {
+      "type": "chip-incu-sts35-temp",
+      "id": "sts35b",
+      "top": -90,
+      "left": 350,
+      "attrs": {
+        "temperature": "34.0",
+        "address": "75"
+      }
+    },
+    {
+      "type": "chip-incu-sht4x-env",
+      "id": "sht4x",
+      "top": -20,
+      "left": 350,
+      "attrs": {
+        "temperature": "25",
+        "humidity": "50"
+      }
+    },
+    {
+      "type": "chip-incu-ina3221",
+      "id": "ina0",
+      "top": 60,
+      "left": 350,
+      "attrs": {
+        "address": "64"
+      }
+    },
+    {
+      "type": "chip-incu-ina3221",
+      "id": "ina1",
+      "top": 140,
+      "left": 350,
+      "attrs": {
+        "address": "65"
+      }
+    },
+    {
+      "type": "chip-incu-humidifier",
+      "id": "humidifier",
+      "top": 220,
+      "left": 350,
+      "attrs": {
+        "address": "66",
+        "waterLevel": "80"
+      }
+    },
+    {
+      "type": "chip-incu-heater-ssr",
+      "id": "heater",
+      "top": 300,
+      "left": 350,
+      "attrs": {
+        "ambientTemp": "25",
+        "thermalMass": "2"
+      }
+    },
+    {
+      "type": "chip-incu-fan-pwm",
+      "id": "fan",
+      "top": 380,
+      "left": 350,
+      "attrs": {
+        "maxRpm": "3200"
+      }
+    },
+    {
+      "type": "chip-incu-buzzer-alarm",
+      "id": "buzzer",
+      "top": 460,
+      "left": 350,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-door-touch",
+      "id": "door",
+      "top": 540,
+      "left": 350,
+      "attrs": {
+        "doorOpen": "0"
+      }
+    }
+  ],
+  "connections": [
+    ["esp32:3V3", "ntc:VCC", "red", []],
+    ["esp32:GND.1", "ntc:GND", "black", []],
+    ["esp32:39", "ntc:OUT", "green", []],
+
+    ["esp32:3V3", "sts35a:VCC", "red", []],
+    ["esp32:GND.1", "sts35a:GND", "black", []],
+    ["esp32:22", "sts35a:SCL", "purple", []],
+    ["esp32:21", "sts35a:SDA", "blue", []],
+
+    ["esp32:3V3", "sts35b:VCC", "red", []],
+    ["esp32:GND.1", "sts35b:GND", "black", []],
+    ["esp32:22", "sts35b:SCL", "purple", []],
+    ["esp32:21", "sts35b:SDA", "blue", []],
+
+    ["esp32:3V3", "sht4x:VCC", "red", []],
+    ["esp32:GND.1", "sht4x:GND", "black", []],
+    ["esp32:22", "sht4x:SCL", "purple", []],
+    ["esp32:21", "sht4x:SDA", "blue", []],
+
+    ["esp32:3V3", "ina0:VCC", "red", []],
+    ["esp32:GND.1", "ina0:GND", "black", []],
+    ["esp32:22", "ina0:SCL", "purple", []],
+    ["esp32:21", "ina0:SDA", "blue", []],
+
+    ["esp32:3V3", "ina1:VCC", "red", []],
+    ["esp32:GND.1", "ina1:GND", "black", []],
+    ["esp32:22", "ina1:SCL", "purple", []],
+    ["esp32:21", "ina1:SDA", "blue", []],
+
+    ["esp32:3V3", "humidifier:VCC", "red", []],
+    ["esp32:GND.1", "humidifier:GND", "black", []],
+    ["esp32:22", "humidifier:SCL", "purple", []],
+    ["esp32:21", "humidifier:SDA", "blue", []],
+
+    ["esp32:3V3", "heater:VCC", "red", []],
+    ["esp32:GND.1", "heater:GND", "black", []],
+    ["esp32:27", "heater:PWM_IN", "orange", []],
+
+    ["esp32:3V3", "fan:VCC", "red", []],
+    ["esp32:GND.1", "fan:GND", "black", []],
+    ["esp32:12", "fan:PWM_IN", "orange", []],
+    ["esp32:35", "fan:TACH_OUT", "green", []],
+    ["esp32:14", "fan:EN", "yellow", []],
+
+    ["esp32:3V3", "buzzer:VCC", "red", []],
+    ["esp32:GND.1", "buzzer:GND", "black", []],
+    ["esp32:5", "buzzer:IN", "orange", []],
+
+    ["esp32:3V3", "door:VCC", "red", []],
+    ["esp32:GND.1", "door:GND", "black", []],
+    ["esp32:32", "door:OUT", "green", []],
+    ["esp32:26", "door:SEL", "yellow", []]
+  ]
+}

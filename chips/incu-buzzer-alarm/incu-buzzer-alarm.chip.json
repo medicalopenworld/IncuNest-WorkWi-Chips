@@ -1,0 +1,9 @@
+{
+  "name": "Incu Buzzer Alarm",
+  "author": "IncuNest Project",
+  "pins": ["VCC", "GND", "IN"],
+  "display": {
+    "width": 48,
+    "height": 16
+  }
+}
