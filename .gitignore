@@ -3,7 +3,6 @@ node_modules/
 dist/
 build/
 *.log
-*.chip.wasm
 *.swp
 .DS_Store
 viewer-3d/public/models/*.glb
