@@ -2,6 +2,14 @@
 
 Mono-repo para simular IncuNest en Wokwi con custom chips, ejemplos y visor 3D.
 
+## Visor 3D
+
+### Vista general — Gemelo digital con telemetría en tiempo real
+![Vista general](docs/screenshot-overview.png)
+
+### Vista de piezas — 49 piezas interactivas con modos lupa y mano
+![Vista de piezas](docs/screenshot-parts.png)
+
 ## Estructura
 
 - `chips/`: modelos de sensores y actuadores (Wokwi Chips API en C)
