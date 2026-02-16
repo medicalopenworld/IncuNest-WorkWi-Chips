@@ -44,6 +44,30 @@ export default function HomePage() {
         </div>
 
         <div className="topbar__actions">
+          <details className="help-tooltip">
+            <summary aria-label="Mostrar ayuda" title="Ayuda" />
+            <div className="help-tooltip__content">
+              <h2>Guía rápida</h2>
+              <ol>
+                {helpSteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+              <p className="help-tooltip__note">
+                Controles 3D: clic izquierdo = girar, clic derecho/arrastrar = desplazar, rueda = zoom.
+              </p>
+              <p className="help-tooltip__note">
+                En vista &quot;Piezas&quot;, haz clic en cualquier pieza para ver su nombre y seleccionarla.
+              </p>
+            </div>
+          </details>
+        </div>
+      </header>
+
+      <div className="controls-row">
+        <StatusPanel orientation="horizontal" />
+
+        <div className="controls-toggles">
           <nav className="view-toggle" aria-label="Modo de vista">
             <button
               type="button"
@@ -77,28 +101,8 @@ export default function HomePage() {
               🔴 Live
             </button>
           </nav>
-
-          <details className="help-tooltip">
-            <summary aria-label="Mostrar ayuda" title="Ayuda" />
-            <div className="help-tooltip__content">
-              <h2>Guía rápida</h2>
-              <ol>
-                {helpSteps.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-              <p className="help-tooltip__note">
-                Controles 3D: clic izquierdo = girar, clic derecho/arrastrar = desplazar, rueda = zoom.
-              </p>
-              <p className="help-tooltip__note">
-                En vista &quot;Piezas&quot;, haz clic en cualquier pieza para ver su nombre y seleccionarla.
-              </p>
-            </div>
-          </details>
         </div>
-      </header>
-
-      <StatusPanel orientation="horizontal" />
+      </div>
 
       <section className="viewer-section">
         {viewMode === "overview" ? <IncubatorViewer /> : <PartsViewer />}

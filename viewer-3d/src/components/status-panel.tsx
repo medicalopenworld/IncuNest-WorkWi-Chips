@@ -45,6 +45,30 @@ export function StatusPanel({ orientation = "horizontal" }: StatusPanelProps) {
   const metricsClassName = orientation === "horizontal" ? "metrics-row" : "metrics-grid";
   const footerClassName = orientation === "horizontal" ? "status-strip__footer" : "status-panel__footer";
 
+  if (orientation === "horizontal") {
+    return (
+      <aside className={rootClassName}>
+        <header className="status-panel__header">
+          <h2>Telemetría</h2>
+          <span className={telemetry.alarm === "NO_ALARMS" ? "alarm-badge" : "alarm-badge alarm-badge--active"}>
+            {telemetry.alarm}
+          </span>
+          <span className="status-pill">{telemetry.doorOpen ? "🚪 Abierta" : "🔒 Cerrada"}</span>
+          <span className="status-pill status-pill--time" suppressHydrationWarning>🕐 {formattedTimestamp}</span>
+        </header>
+
+        <div className={metricsClassName}>
+          {cards.map((card) => (
+            <article key={card.label} className="metric-card">
+              <p className="metric-label">{card.label}</p>
+              <p className={card.state}>{card.value}</p>
+            </article>
+          ))}
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className={rootClassName}>
       <header className="status-panel__header">

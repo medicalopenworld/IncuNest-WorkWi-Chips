@@ -180,6 +180,10 @@
     ["esp32:3V3", "door:VCC", "red", []],
     ["esp32:GND.1", "door:GND", "black", []],
     ["esp32:32", "door:OUT", "green", []],
-    ["esp32:26", "door:SEL", "yellow", []]
+    ["esp32:26", "door:SEL", "yellow", []],
+
+    ["esp32:3V3", "telemetry:VCC", "red", []],
+    ["esp32:GND.1", "telemetry:GND", "black", []],
+    ["esp32:16", "telemetry:TX", "cyan", []]
   ]
 }

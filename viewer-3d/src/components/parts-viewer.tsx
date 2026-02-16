@@ -568,7 +568,7 @@ export function PartsViewer() {
   const controlsRef = useRef<CameraControlsImpl | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [hoveredName, setHoveredName] = useState<string | null>(null);
-  const [mode, setMode] = useState<InteractionMode>("select");
+  const [mode, setMode] = useState<InteractionMode>("move");
   const [lidOpen, setLidOpen] = useState(false);
   const [doorsOpen, setDoorsOpen] = useState(() => DOOR_CONFIGS.map(() => false));
   const [slidesOut, setSlidesOut] = useState<Set<string>>(() => new Set());
