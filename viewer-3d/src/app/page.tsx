@@ -17,12 +17,13 @@ const helpSteps = [
 type ViewMode = "overview" | "parts";
 type TelemetrySource = "simulated" | "wokwi";
 
-function TelemetryProvider({ source }: { source: TelemetrySource }) {
-  if (source === "wokwi") {
-    useWokwiTelemetry();
-  } else {
-    useSimulatedTelemetry();
-  }
+function SimulatedProvider() {
+  useSimulatedTelemetry();
+  return null;
+}
+
+function WokwiProvider() {
+  useWokwiTelemetry();
   return null;
 }
 
@@ -32,7 +33,7 @@ export default function HomePage() {
 
   return (
     <main className="page-shell page-shell--immersive">
-      <TelemetryProvider source={telemetrySource} />
+      {telemetrySource === "wokwi" ? <WokwiProvider /> : <SimulatedProvider />}
       <header className="topbar">
         <div className="topbar__brand">
           <p className="eyebrow">IncuNest Digital Twin</p>

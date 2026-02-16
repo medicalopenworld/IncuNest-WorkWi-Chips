@@ -2,6 +2,7 @@
 version = 1
 firmware = "Incunest_v15/Firmware/MotherBoard/firmware.bin"
 gdbServerPort = 3333
+rfc2217ServerPort = 4000
 
 [[chip]]
 name = "incu-ntc-skin"
@@ -38,5 +39,3 @@ binary = "chips/incu-buzzer-alarm/incu-buzzer-alarm.chip.wasm"
 [[chip]]
 name = "incu-door-touch"
 binary = "chips/incu-door-touch/incu-door-touch.chip.wasm"
-
-rfc2217ServerPort = 4000
