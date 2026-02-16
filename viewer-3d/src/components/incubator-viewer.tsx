@@ -7,7 +7,6 @@ import { Group, Mesh, MeshPhysicalMaterial } from "three";
 import type CameraControlsImpl from "camera-controls";
 
 import { useIncubatorStore } from "@/stores/incubator-store";
-import { useSimulatedTelemetry } from "@/hooks/use-simulated-telemetry";
 
 const MODEL_BASE_ROTATION_X = -Math.PI / 2;
 const MODEL_FLOAT_ROTATION_SPEED = 0.22;
@@ -146,7 +145,6 @@ function SceneContent({
 }
 
 export function IncubatorViewer() {
-  useSimulatedTelemetry();
   const [hasGlbModel, setHasGlbModel] = useState(false);
   const [checked, setChecked] = useState(false);
   const controlsRef = useRef<CameraControlsImpl | null>(null);
