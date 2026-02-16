@@ -39,3 +39,7 @@ binary = "chips/incu-buzzer-alarm/incu-buzzer-alarm.chip.wasm"
 [[chip]]
 name = "incu-door-touch"
 binary = "chips/incu-door-touch/incu-door-touch.chip.wasm"
+
+[[chip]]
+name = "incu-telemetry-reporter"
+binary = "chips/incu-telemetry-reporter/incu-telemetry-reporter.chip.wasm"

@@ -111,6 +111,21 @@
       "attrs": {
         "doorOpen": "0"
       }
+    },
+    {
+      "type": "chip-incu-telemetry-reporter",
+      "id": "telemetry",
+      "top": 600,
+      "left": 350,
+      "attrs": {
+        "chamberTemp": "34.2",
+        "skinTemp": "36.6",
+        "humidity": "58",
+        "fanRpm": "1200",
+        "heaterDuty": "42",
+        "doorOpen": "0",
+        "alarm": "0"
+      }
     }
   ],
   "connections": [

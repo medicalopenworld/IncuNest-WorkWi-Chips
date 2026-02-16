@@ -69,7 +69,9 @@ function mapFields(raw) {
       if (target === "doorOpen") {
         mapped[target] = value === true || value === 1 || value === "1" || value === "open";
       } else if (target === "alarm") {
-        mapped[target] = String(value);
+        const ALARM_NAMES = ["NO_ALARMS", "TEMPERATURE_ALARM", "HUMIDITY_ALARM", "FAN_ISSUE_ALARM", "HEATER_ALARM", "POWER_ALARM"];
+        const code = parseInt(value);
+        mapped[target] = (!isNaN(code) && ALARM_NAMES[code]) ? ALARM_NAMES[code] : String(value);
       } else {
         mapped[target] = parseFloat(value) || 0;
       }
