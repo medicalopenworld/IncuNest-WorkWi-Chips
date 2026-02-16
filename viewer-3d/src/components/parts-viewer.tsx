@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
-import { CameraControls, Center, ContactShadows, Environment, Html, useGLTF } from "@react-three/drei";
+import { CameraControls, Center, ContactShadows, Environment, Html, Lightformer, useGLTF } from "@react-three/drei";
 import { Group, Mesh, MeshStandardMaterial, Color } from "three";
 import type CameraControlsImpl from "camera-controls";
 
@@ -80,6 +80,7 @@ const COLOR_DOOR_WHITE = new Color(0.95, 0.95, 0.95);
 const COLOR_GLASS_GRAY = new Color(0.75, 0.78, 0.80);
 const COLOR_POMO_RED = new Color(0.78, 0.22, 0.18);
 const COLOR_MATTRESS = new Color(0.85, 0.82, 0.72);     // beige/cream
+const COLOR_SHELF = new Color(0.55, 0.72, 0.85);        // soft blue shelf
 const COLOR_ELECTRONICS = new Color(0.15, 0.45, 0.25);  // PCB green
 const COLOR_METAL = new Color(0.72, 0.72, 0.72);        // metallic gray
 const COLOR_PLASTIC_3D = new Color(0.88, 0.86, 0.80);   // light beige 3D print
@@ -93,11 +94,11 @@ function isPETG(n: string) { return n.includes("PETG"); }
 
 function getBaseColor(name: string): Color {
   if (isPomo(name)) return COLOR_POMO_RED;
+  if (name.includes("PE-300_10mm_shelf")) return COLOR_SHELF;
   if (isDoor(name) || isPanel(name)) return COLOR_DOOR_WHITE;
   if (isGlass(name)) return COLOR_GLASS_GRAY;
   if (isPETG(name)) return COLOR_GLASS_GRAY;
   if (name.includes("Matress")) return COLOR_MATTRESS;
-  if (name.includes("PE-300_10mm_shelf")) return new Color(0.85, 0.75, 0.55); // warm wood tone for shelf
   if (name.includes("Electronic_support")) return COLOR_ELECTRONICS;
   if (name.includes("Bottle")) return COLOR_BOTTLE;
   if (name.includes("Fasteners") || name.includes("Threaded_Rods")) return COLOR_METAL;
@@ -106,9 +107,9 @@ function getBaseColor(name: string): Color {
   return COLOR_DEFAULT_TEAL;
 }
 function getBaseOpacity(name: string): number {
-  if (isGlass(name)) return 0.3;
-  if (isPETG(name)) return 0.4;
-  if (name.includes("Bottle")) return 0.7;
+  if (isGlass(name)) return 0.25;
+  if (isPETG(name)) return 0.32;
+  if (name.includes("Bottle")) return 0.55;
   return 1.0;
 }
 function isSolid(name: string): boolean {
@@ -265,13 +266,20 @@ function PartsMesh({
       const name = node.name;
       const solid = isSolid(name);
       const glass = isGlass(name);
+      const petg = isPETG(name);
+      const bottle = name.includes("Bottle");
+      const metal = name.includes("Fasteners") || name.includes("Threaded_Rods") || name.includes("USB-C") || name.includes("IEC");
+      const pomo = isPomo(name);
+      const panel = isPanel(name);
+
       const mat = new MeshStandardMaterial({
         color: getBaseColor(name).clone(),
         transparent: !solid,
         opacity: getBaseOpacity(name),
-        roughness: glass ? 0.1 : solid ? 0.35 : 0.4,
-        metalness: glass ? 0.08 : solid ? 0.02 : 0.05,
+        roughness: glass ? 0.05 : petg ? 0.12 : bottle ? 0.08 : metal ? 0.18 : pomo ? 0.22 : panel ? 0.5 : solid ? 0.4 : 0.35,
+        metalness: metal ? 0.88 : pomo ? 0.08 : glass ? 0.05 : solid ? 0.02 : 0.04,
         depthWrite: solid,
+        envMapIntensity: glass || petg || bottle ? 1.8 : metal ? 2.5 : 1.0,
       });
       mat.userData.nodeName = name;
       node.material = mat;
@@ -514,9 +522,12 @@ function PartsScene({
 }) {
   return (
     <>
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[6, 7, 4]} intensity={1.25} color="#9ffcff" />
-      <pointLight position={[0, 2.5, 0]} intensity={1.2} color="#67ffe9" />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 8, 4]} intensity={1.6} color="#e8fcff" />
+      <directionalLight position={[-3, 4, -5]} intensity={0.5} color="#c0d0ff" />
+      <pointLight position={[0, 3, 0]} intensity={1.0} color="#67ffe9" distance={12} />
+      <pointLight position={[3, 0.5, 3]} intensity={0.4} color="#ffffff" distance={10} />
+      <spotLight position={[0, 6, 0]} angle={0.5} penumbra={0.8} intensity={0.8} color="#ffffff" />
       <Suspense
         fallback={
           <Html center>
@@ -539,7 +550,7 @@ function PartsScene({
           onSlideToggle={onSlideToggle}
         />
       </Suspense>
-      <ContactShadows position={[0, -1.05, 0]} opacity={0.45} scale={8} blur={2.2} />
+      <ContactShadows position={[0, -1.05, 0]} opacity={0.55} scale={12} blur={2.5} far={4} />
       {mode === "select" && (
         <group position={[0.5, -1, -7]}>
           <axesHelper args={[2]} />
@@ -548,7 +559,13 @@ function PartsScene({
           <Html position={[0, 0, 2.2]} center style={{ color: "#4488ff", fontSize: "12px", fontWeight: 700, pointerEvents: "none" }}>Z</Html>
         </group>
       )}
-      <Environment preset="night" />
+      <Environment resolution={256} background={false}>
+        <Lightformer form="rect" intensity={2.0} position={[0, 5, -3]} scale={[8, 2, 1]} color="#e0f8ff" />
+        <Lightformer form="rect" intensity={0.8} position={[5, 2, 0]} scale={[3, 4, 1]} rotation-y={-Math.PI / 2} color="#d0e8ff" />
+        <Lightformer form="rect" intensity={0.6} position={[-5, 2, 0]} scale={[3, 4, 1]} rotation-y={Math.PI / 2} color="#e8e0ff" />
+        <Lightformer form="circle" intensity={1.2} position={[0, 0.5, 5]} scale={3} color="#67ffe9" />
+        <Lightformer form="rect" intensity={0.3} position={[0, -1, 0]} scale={[10, 1, 10]} rotation-x={Math.PI / 2} color="#1a2a3a" />
+      </Environment>
       <CameraControls
         ref={controlsRef}
         makeDefault
@@ -675,7 +692,11 @@ export function PartsViewer() {
 
   return (
     <div className="viewer-wrap">
-      <Canvas camera={{ position: [8, 6, 8], fov: 42, near: 0.01, far: 240 }} dpr={[1, 2]}>
+      <Canvas
+        camera={{ position: [8, 6, 8], fov: 42, near: 0.01, far: 240 }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, toneMappingExposure: 1.1 }}
+      >
         <PartsScene
           controlsRef={controlsRef}
           mode={mode}
