@@ -1,7 +1,7 @@
 {
   "name": "Incu Humidifier Slave",
   "author": "IncuNest Project",
-  "pins": ["VCC", "GND", "SCL", "SDA", "DUTY_OVERRIDE", "OVERRIDE_EN"],
+  "pins": ["VCC", "GND", "SCL", "SDA", "DUTY_OVERRIDE", "OVERRIDE_EN", "HUMIDITY_OUT"],
   "display": {
     "width": 64,
     "height": 96
@@ -9,7 +9,7 @@
   "controls": [
     {
       "id": "waterLevel",
-      "label": "Water Level (%)",
+      "label": "Water Level Refill (%)",
       "type": "range",
       "min": 0,
       "max": 100,
@@ -21,6 +21,14 @@
       "type": "range",
       "min": 32,
       "max": 127,
+      "step": 1
+    },
+    {
+      "id": "speedMode",
+      "label": "Mode (0=Normal, 1=Rapido, 2=Acelerado)",
+      "type": "range",
+      "min": 0,
+      "max": 2,
       "step": 1
     }
   ]

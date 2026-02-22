@@ -12,13 +12,15 @@ Esclavo I2C virtual para control de humidificador. Incluye visualización gráfi
 | `SDA`| Bidireccional | Datos I2C            |
 | `DUTY_OVERRIDE` | Entrada analógica | Duty externo (0..3.3V = 0..95%) |
 | `OVERRIDE_EN` | Entrada digital | Habilita modo override |
+| `HUMIDITY_OUT` | Salida analógica | Humedad generada (0..3.3V = 0..100% RH extra) |
 
 ## Controles (Atributos de simulación)
 
 | Control      | Tipo  | Rango  | Descripción                                   |
 |--------------|-------|--------|-----------------------------------------------|
-| `waterLevel` | range | 0–100  | Nivel de agua en el depósito (%)              |
+| `waterLevel` | range | 0–100  | Nivel inicial/refill del depósito (%)         |
 | `address`    | range | 32–127 | Dirección I2C del dispositivo (decimal)       |
+| `speedMode`  | range | 0–2    | Modo de simulación: 0=Normal, 1=Rapido, 2=Acelerado |
 
 ## Protocolo I2C
 
@@ -38,8 +40,18 @@ Si `OVERRIDE_EN=HIGH`, el chip usa `DUTY_OVERRIDE` como duty efectivo (fallback 
 | Byte | Valor devuelto                                 |
 |------|------------------------------------------------|
 | 0    | Duty cycle actual (0–95)                       |
-| 1    | Nivel de agua actual (del atributo `waterLevel`) |
+| 1    | Nivel de agua simulado dinámico (0–100)        |
 | 2    | Estado: `0x02` si depósito vacío, `0x00` si OK |
+
+## Modelo físico simplificado
+
+- El depósito se vacía progresivamente en función del duty (más duty → más consumo de agua).
+- Si cambias `waterLevel` en el slider, se interpreta como refill/manual set del nivel de tanque.
+- La salida `HUMIDITY_OUT` representa la humedad extra generada por vapor y cae cuando baja duty o se vacía el depósito.
+- `speedMode` acelera la dinámica para pruebas:
+  - `Normal` (0): factor 1x
+  - `Rapido` (1): factor 5x
+  - `Acelerado` (2): factor 25x
 
 ## Visualización Gráfica (Framebuffer 64×64)
 

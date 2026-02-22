@@ -228,6 +228,7 @@
     ["bb1:tn.18", "humidifier:GND", "black", []],
     ["esp32:9", "humidifier:SCL", "purple", []],
     ["esp32:8", "humidifier:SDA", "blue", []],
+    ["humidifier:HUMIDITY_OUT", "sht4x:HUMIDITY_INFLUENCE", "cyan", []],
     ["telemetry:HUMIDIFIER_DUTY_OUT", "humidifier:DUTY_OVERRIDE", "blue", []],
     ["telemetry:HUMIDIFIER_OVERRIDE_EN", "humidifier:OVERRIDE_EN", "yellow", []],
 

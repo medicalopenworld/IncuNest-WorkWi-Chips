@@ -124,8 +124,17 @@ Usa los pulsadores `PREV`, `OK`, `NEXT`, `UP`, `DOWN` junto al display: son clic
 4. Activa/desactiva puerta (`door`) y valida indicador `Door` en `MAIN`.
 5. Cuando el buzzer esté activo, valida `alarm` en stream JSON del monitor serie.
 6. En `SETTINGS`, sube `Humidity setpoint` por encima de la humedad medida y valida que el humidificador enciende (override HMI activo).
+7. Con humidificador activo sostenido, valida que `humidifier` baja progresivamente su nivel de agua y que `sht4x` sube humedad efectiva respecto a su referencia.
 
 Todos estos cambios salen por el mismo stream JSON de `telemetry:TX`, consumido por display y por bridge 3D.
+
+### Modelo físico de humedad (mode2)
+
+- `sht4x.humidity` es la **referencia base** de humedad ambiental.
+- El chip `incu-humidifier` genera humedad extra (`HUMIDITY_OUT`) según duty y agua disponible.
+- El depósito se vacía de forma progresiva al generar vapor.
+- `sht4x` calcula humedad efectiva = referencia + aporte del humidificador (clamp 0..100).
+- En `humidifier.speedMode`: `0=Normal`, `1=Rapido`, `2=Acelerado` para acelerar la simulación.
 
 ### Pantallas disponibles (mode2)
 

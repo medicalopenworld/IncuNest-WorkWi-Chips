@@ -23,12 +23,17 @@
 typedef struct {
   uint32_t water_level_attr;
   uint32_t address_attr;
+  uint32_t speed_mode_attr;
   uint8_t duty_cycle;
   uint8_t read_index;
   uint8_t write_index;
   uint8_t write_buf[4];
   pin_t duty_override;
   pin_t override_en;
+  pin_t humidity_out;
+  uint32_t last_water_attr;
+  float water_level_sim;
+  float humidity_boost_pct;
 
   buffer_t fb;
   uint32_t pixels[FB_WIDTH * FB_HEIGHT];
@@ -53,6 +58,20 @@ static float clampf(float x, float min_v, float max_v) {
   return x;
 }
 
+static int read_speed_mode(chip_state_t *chip) {
+  int mode = (int)attr_read(chip->speed_mode_attr);
+  if (mode < 0) mode = 0;
+  if (mode > 2) mode = 2;
+  return mode;
+}
+
+static float speed_mode_factor(int mode) {
+  // 0=normal, 1=rapido, 2=acelerado (exponential progression)
+  if (mode == 1) return 5.0f;
+  if (mode == 2) return 25.0f;
+  return 1.0f;
+}
+
 static uint8_t effective_duty_cycle(chip_state_t *chip) {
   if (pin_read(chip->override_en) == HIGH) {
     float v = clampf(pin_adc_read(chip->duty_override), 0.0f, 3.3f);
@@ -68,8 +87,43 @@ static void on_timer(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
   chip->anim_frame++;
   uint8_t duty_cycle = effective_duty_cycle(chip);
+  int speed_mode = read_speed_mode(chip);
+  float mode_factor = speed_mode_factor(speed_mode);
 
-  uint8_t water_level = (uint8_t)attr_read(chip->water_level_attr);
+  uint32_t water_attr = attr_read(chip->water_level_attr);
+  if (water_attr > 100) water_attr = 100;
+  if (water_attr != chip->last_water_attr) {
+    // Manual refill/drain via slider updates simulated tank level.
+    chip->last_water_attr = water_attr;
+    chip->water_level_sim = (float)water_attr;
+  }
+
+  const float dt_s = 0.05f; // timer period: 50ms
+  if (duty_cycle > 0 && chip->water_level_sim > 0.0f) {
+    // Non-linear response to duty (faster visible changes in high-speed modes).
+    const float max_use_pct_per_s = 0.30f;
+    float duty_norm = (float)duty_cycle / 95.0f;
+    float duty_intensity = duty_norm * (2.0f - duty_norm); // 0..1, convex
+    float use_rate = duty_intensity * max_use_pct_per_s;
+    chip->water_level_sim -= use_rate * dt_s * mode_factor;
+    if (chip->water_level_sim < 0.0f) chip->water_level_sim = 0.0f;
+  }
+
+  float target_boost = 0.0f;
+  if (chip->water_level_sim > 0.0f && duty_cycle > 0) {
+    float water_factor = clampf(chip->water_level_sim / 100.0f, 0.0f, 1.0f);
+    float duty_norm = (float)duty_cycle / 95.0f;
+    float duty_intensity = duty_norm * (2.0f - duty_norm);
+    target_boost = duty_intensity * 35.0f * water_factor;
+  }
+  float boost_alpha = 0.10f * mode_factor;
+  if (boost_alpha > 0.98f) boost_alpha = 0.98f;
+  chip->humidity_boost_pct += (target_boost - chip->humidity_boost_pct) * boost_alpha;
+  if (chip->humidity_boost_pct < 0.05f) chip->humidity_boost_pct = 0.0f;
+  float humidity_out_v = (chip->humidity_boost_pct / 100.0f) * 3.3f;
+  pin_dac_write(chip->humidity_out, clampf(humidity_out_v, 0.0f, 3.3f));
+
+  uint8_t water_level = (uint8_t)(chip->water_level_sim + 0.5f);
   if (water_level > 100) water_level = 100;
 
   // Clear background
@@ -116,26 +170,37 @@ static void on_timer(void *user_data) {
   int body_top = 34;
   int inner_h  = 58;
   int water_h  = (water_level * inner_h) / 100;
+  int water_y_top = body_top + (inner_h - water_h);
+  int water_y_bottom = body_top + inner_h - 1;
   if (water_h > 0) {
-    int wy = body_top + (inner_h - water_h);
-    draw_rect(chip, 16, wy, 33, water_h, COLOR_WATER);
+    draw_rect(chip, 16, water_y_top, 33, water_h, COLOR_WATER);
   }
+
+  // Internal vertical cylinder (same color as cap), from cap area to near bottom.
+  draw_rect(chip, 30, 7, 5, 82, COLOR_CAP);
 
   // Reflection highlight on the left side of the body
   draw_rect(chip, 18, 34, 2, 58, COLOR_HIGHLIGHT);
 
   // =============================================
-  // VAPOR: particles rising from bottle BOTTOM (y > 93)
-  // (bottle is upright now, vapor exits the bottom opening)
+  // VAPOR: particles around the center of current water volume.
+  // As water level drops, this center moves downward automatically.
   // =============================================
-  if (duty_cycle > 0 && water_level > 0) {
+  if (duty_cycle > 0 && water_h > 0) {
     int num_particles = (duty_cycle / 15) + 1;
     if (num_particles > 4) num_particles = 4;
+    int water_center_x = 16 + (33 / 2);
+    int water_center_y = water_y_top + (water_h / 2);
     for (int i = 0; i < num_particles; i++) {
-      int px = 18 + (i * 9) + ((chip->anim_frame + i * 5) % 7) - 2;
-      int py = 94 + (int)((chip->anim_frame + i * 3) % 3);
-      if (py < FB_HEIGHT)
-        draw_rect(chip, px, py, 3, 2, COLOR_VAPOR);
+      int x_jitter = (int)((chip->anim_frame + i * 5) % 5) - 2;
+      int y_jitter = (int)((chip->anim_frame + i * 3) % 5) - 2;
+      int px = water_center_x - 1 + (i - (num_particles / 2)) * 3 + x_jitter;
+      int py = water_center_y + y_jitter;
+      if (px < 16) px = 16;
+      if (px > 46) px = 46; // 46..48 keeps 3px particle inside water body
+      if (py < water_y_top) py = water_y_top;
+      if (py > water_y_bottom - 1) py = water_y_bottom - 1;
+      draw_rect(chip, px, py, 3, 2, COLOR_VAPOR);
     }
   }
 
@@ -143,7 +208,7 @@ static void on_timer(void *user_data) {
   // STATUS DOT: top-right corner (r=3)
   // Green = humidifier ON (duty_cycle > 0), Red = OFF
   // =============================================
-  uint32_t dot = (duty_cycle > 0) ? COLOR_ON : COLOR_OFF;
+  uint32_t dot = (duty_cycle > 0 && water_level > 0) ? COLOR_ON : COLOR_OFF;
   for (int dy = -3; dy <= 3; dy++)
     for (int dx = -3; dx <= 3; dx++)
       if (dx*dx + dy*dy <= 9) {
@@ -168,7 +233,8 @@ static bool on_i2c_connect(void *user_data, uint32_t address, bool read) {
 
 static uint8_t on_i2c_read(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
-  uint8_t water_level = (uint8_t)attr_read(chip->water_level_attr);
+  uint8_t water_level = (uint8_t)(chip->water_level_sim + 0.5f);
+  if (water_level > 100) water_level = 100;
   uint8_t duty_cycle = effective_duty_cycle(chip);
   switch (chip->read_index++) {
     case 0:
@@ -176,7 +242,7 @@ static uint8_t on_i2c_read(void *user_data) {
     case 1:
       return water_level;
     case 2:
-      return water_level == 0 ? 0x02 : 0x00; /* 0x02 = empty tank */
+      return chip->water_level_sim <= 0.01f ? 0x02 : 0x00; /* 0x02 = empty tank */
     default:
       return 0xFF;
   }
@@ -200,12 +266,18 @@ void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
   chip->water_level_attr = attr_init("waterLevel", 80);
   chip->address_attr = attr_init("address", 0x02);
+  chip->speed_mode_attr = attr_init("speedMode", 0);
   chip->duty_cycle = 0;
   chip->read_index = 0;
   chip->write_index = 0;
   chip->anim_frame = 0;
   chip->duty_override = pin_init("DUTY_OVERRIDE", ANALOG);
   chip->override_en = pin_init("OVERRIDE_EN", INPUT_PULLDOWN);
+  chip->humidity_out = pin_init("HUMIDITY_OUT", ANALOG);
+  chip->last_water_attr = attr_read(chip->water_level_attr);
+  if (chip->last_water_attr > 100) chip->last_water_attr = 100;
+  chip->water_level_sim = (float)chip->last_water_attr;
+  chip->humidity_boost_pct = 0.0f;
 
   uint32_t fb_w = 0, fb_h = 0;
   chip->fb = framebuffer_init(&fb_w, &fb_h);

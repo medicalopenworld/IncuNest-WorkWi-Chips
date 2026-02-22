@@ -9,6 +9,7 @@ typedef struct {
   uint32_t humidity_attr;
   uint8_t response[6];
   uint8_t response_index;
+  pin_t humidity_influence;
   pin_t temp_out;
   pin_t hum_out;
   timer_t output_timer;
@@ -31,9 +32,16 @@ static float clampf(float x, float min_v, float max_v) {
   return x;
 }
 
+static float read_effective_humidity(chip_state_t *chip) {
+  float base_h = attr_read_float(chip->humidity_attr);
+  float influence_v = pin_adc_read(chip->humidity_influence);
+  float influence_h = (influence_v / 3.3f) * 100.0f;
+  return clampf(base_h + influence_h, 0.0f, 100.0f);
+}
+
 static void prepare_measurement(chip_state_t *chip) {
   float t = attr_read_float(chip->temperature_attr);
-  float h = attr_read_float(chip->humidity_attr);
+  float h = read_effective_humidity(chip);
 
   uint16_t t_raw = (uint16_t)(((t + 45.0f) * 65535.0f) / 175.0f);
   uint16_t h_raw = (uint16_t)(((h + 6.0f) * 65535.0f) / 125.0f);
@@ -73,7 +81,7 @@ static bool on_i2c_write(void *user_data, uint8_t data) {
 static void on_output_timer(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
   float t = attr_read_float(chip->temperature_attr);
-  float h = attr_read_float(chip->humidity_attr);
+  float h = read_effective_humidity(chip);
 
   // Export helper analog signals for telemetry reporter:
   // TEMP_OUT: -20..80 C -> 0..3.3 V
@@ -89,6 +97,7 @@ void chip_init(void) {
   chip->temperature_attr = attr_init_float("temperature", 25.0f);
   chip->humidity_attr = attr_init_float("humidity", 50.0f);
   chip->response_index = 0;
+  chip->humidity_influence = pin_init("HUMIDITY_INFLUENCE", ANALOG);
   chip->temp_out = pin_init("TEMP_OUT", ANALOG);
   chip->hum_out = pin_init("HUM_OUT", ANALOG);
   chip->output_timer = 0;
