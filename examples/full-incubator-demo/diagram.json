@@ -140,6 +140,32 @@
       "top": 300,
       "left": -250,
       "attrs": {}
+    },
+    {
+      "type": "chip-incu-phototherapy",
+      "id": "phototherapy",
+      "top": 350,
+      "left": -250,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-afe4490-spo2",
+      "id": "spo2",
+      "top": -150,
+      "left": -500,
+      "attrs": {
+        "spo2": "97",
+        "heartRate": "120"
+      }
+    },
+    {
+      "type": "chip-incu-sim800c-gprs",
+      "id": "gprs",
+      "top": -50,
+      "left": -500,
+      "attrs": {
+        "signalStrength": "20"
+      }
     }
   ],
   "connections": [
@@ -448,6 +474,23 @@
       "esp32:4",
       "yellow",
       []
-    ]
+    ],
+
+    ["esp32:3V3", "phototherapy:VCC", "red", []],
+    ["esp32:GND.1", "phototherapy:GND", "black", []],
+    ["esp32:13", "phototherapy:PWM_IN", "orange", []],
+    ["esp32:14", "phototherapy:EN", "yellow", []],
+
+    ["esp32:3V3", "spo2:VCC", "red", []],
+    ["esp32:GND.1", "spo2:GND", "black", []],
+    ["esp32:2", "spo2:CS", "white", []],
+    ["esp32:23", "spo2:MOSI", "orange", []],
+    ["esp32:19", "spo2:MISO", "yellow", []],
+    ["esp32:18", "spo2:SCK", "green", []],
+
+    ["esp32:3V3", "gprs:VCC", "red", []],
+    ["esp32:GND.1", "gprs:GND", "black", []],
+    ["esp32:17", "gprs:RX", "cyan", []],
+    ["esp32:16", "gprs:TX", "cyan", []]
   ]
 }

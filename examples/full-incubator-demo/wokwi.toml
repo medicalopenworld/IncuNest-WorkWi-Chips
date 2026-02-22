@@ -47,3 +47,15 @@ binary = "../../chips/incu-telemetry-reporter/incu-telemetry-reporter.chip.wasm"
 [[chip]]
 name = "incu-display-hmi"
 binary = "../../chips/incu-display-hmi/incu-display-hmi.chip.wasm"
+
+[[chip]]
+name = "incu-phototherapy"
+binary = "../../chips/incu-phototherapy/incu-phototherapy.chip.wasm"
+
+[[chip]]
+name = "incu-afe4490-spo2"
+binary = "../../chips/incu-afe4490-spo2/incu-afe4490-spo2.chip.wasm"
+
+[[chip]]
+name = "incu-sim800c-gprs"
+binary = "../../chips/incu-sim800c-gprs/incu-sim800c-gprs.chip.wasm"
