@@ -241,7 +241,6 @@
 
     ["bb1:bp.16", "telemetry:VCC", "red", []],
     ["bb1:bn.16", "telemetry:GND", "black", []],
-    ["telemetry:TX", "esp32:TX", "cyan", []],
 
     ["bb1:bp.18", "display:VCC", "red", []],
     ["bb1:bn.18", "display:GND", "black", []],

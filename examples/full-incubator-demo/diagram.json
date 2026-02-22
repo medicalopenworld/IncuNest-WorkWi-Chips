@@ -402,12 +402,6 @@
       []
     ],
     [
-      "telemetry:TX",
-      "esp32:TX",
-      "cyan",
-      []
-    ],
-    [
       "esp32:3V3",
       "display:VCC",
       "red",
