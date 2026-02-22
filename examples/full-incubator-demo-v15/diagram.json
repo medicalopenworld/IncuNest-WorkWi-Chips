@@ -57,7 +57,7 @@
     {
       "type": "chip-incu-buzzer-alarm",
       "id": "buzzer",
-      "top": 700,
+      "top": 750,
       "left": -550,
       "attrs": {}
     },
