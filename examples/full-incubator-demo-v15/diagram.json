@@ -36,7 +36,7 @@
     {
       "type": "chip-incu-heater-ssr",
       "id": "heater",
-      "top": 500,
+      "top": 550,
       "left": -550,
       "attrs": { "ambientTemp": "25", "thermalMass": "2" }
     },
