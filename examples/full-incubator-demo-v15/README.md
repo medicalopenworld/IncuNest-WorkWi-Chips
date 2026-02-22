@@ -78,8 +78,8 @@ En el hardware real v15, el CrowPanel se comunica por **USB Host** (CDC ACM vía
 
 `mode2` en este repo es el flujo v15 más fiel para HMI interactivo en Wokwi:
 - escenario `examples/full-incubator-demo-v15/`
-- chip `incu-display-hmi` con navegación por `BTN_PREV`, `BTN_NEXT`, `BTN_OK`
-- wiring dedicado en `diagram.json` (switches `btnPrev`, `btnNext`, `btnOk`)
+- chip `incu-display-hmi` con navegación táctil virtual en footer (PREV/OK/NEXT)
+- controles Wokwi `touchX`, `touchY`, `touchTap` (sin switches físicos)
 - firmware real v15 cargado desde `../../Incunest_v15/Firmware/MotherBoard/firmware.bin`
 
 ### Ejecución end-to-end (copy/paste)
@@ -93,20 +93,21 @@ code .
 # En VS Code: F1 → "Wokwi: Start Simulator"
 ```
 
-### Controles de pantalla (PREV/NEXT/OK)
+### Controles táctiles virtuales (`touchX`/`touchY`/`touchTap`)
 
-En el diagrama hay 3 `wokwi-slide-switch` a la derecha del display:
-- `btnPrev` → `display:BTN_PREV`
-- `btnNext` → `display:BTN_NEXT`
-- `btnOk` → `display:BTN_OK`
+Wokwi no expone eventos nativos de click/touch sobre el framebuffer de un custom chip, así que el toque se emula con controles.
 
-Para simular una pulsación: mover el switch a **GND (LOW)** y volver a **VCC (HIGH)**.
+1. Ajusta `touchX` (0..479) y `touchY` (0..319) en los sliders del chip.
+2. Dispara el tap cambiando `touchTap` de **0→1**.
+3. Regresa `touchTap` a **0** para poder generar el siguiente tap.
 
-| Control | Acción |
-|---------|--------|
-| PREV | Pantalla anterior (cíclico) |
-| NEXT | Pantalla siguiente (cíclico) |
-| OK | BOOT→MAIN, LOCK↔UNLOCK, en ALARMS con alarmas activas alterna mute |
+Para navegación, usa el footer (`touchY >= 296`) y estas zonas en X:
+
+| Zona footer | `touchX` | Acción |
+|-------------|----------|--------|
+| PREV | 0..159 | Pantalla anterior (cíclico) |
+| OK | 160..319 | BOOT→MAIN, LOCK↔UNLOCK, en ALARMS con alarmas activas alterna mute |
+| NEXT | 320..479 | Pantalla siguiente (cíclico) |
 
 > Cuando la UI está bloqueada, PREV/NEXT quedan deshabilitados hasta desbloquear con OK.
 
@@ -128,5 +129,5 @@ Orden de navegación: `BOOT → MAIN → SETTINGS → ALARMS → CHARTS → PULS
 
 - **USB Host no simulado:** el hardware real usa USB Host CDC ACM (CH340C, `CommTask.cpp`), no disponible en Wokwi.
 - **Canal HMI simplificado:** en `mode2` el display consume stream simulado de `incu-telemetry-reporter`; no hay retorno cableado del display hacia la motherboard.
-- **UI aproximada:** se usa framebuffer 480×320 con botones PREV/NEXT/OK, no panel RGB táctil 800×480 + GT911/LVGL completo.
+- **UI aproximada:** se usa framebuffer 480×320 y toque emulado con `touchX/touchY/touchTap`; no hay touch nativo ni panel RGB táctil 800×480 + GT911/LVGL completo.
 - **Datos parciales:** `CHARTS` no incluye histórico real y `PULSEOXI` queda en placeholder hasta publicar esos campos en el stream.

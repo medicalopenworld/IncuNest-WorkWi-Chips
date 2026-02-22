@@ -4,7 +4,7 @@
 >
 > Fuentes consultadas: Wokwi Chips API docs, código fuente IncuNest (medicalopenworld/IncuNest), Elecrow CrowPanel 7.0" HMI ESP32, documentación Wokwi VS Code Extension.
 >
-> **Actualización operativa (mode2):** para el flujo final de HMI interactivo v15 (controles PREV/NEXT/OK + lista de pantallas + limitaciones), usar `examples/full-incubator-demo-v15/README.md`.
+> **Actualización operativa (mode2):** para el flujo final de HMI interactivo v15 con toque emulado (`touchX`/`touchY`/`touchTap`, tap 0→1 y zonas footer PREV/OK/NEXT), usar `examples/full-incubator-demo-v15/README.md`.
 
 ---
 

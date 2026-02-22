@@ -77,28 +77,6 @@
       "attrs": {}
     },
     {
-      "type": "wokwi-slide-switch",
-      "id": "btnPrev",
-      "top": 250,
-      "left": 760,
-      "attrs": {}
-    },
-    {
-      "type": "wokwi-slide-switch",
-      "id": "btnNext",
-      "top": 330,
-      "left": 760,
-      "attrs": {}
-    },
-    {
-      "type": "wokwi-slide-switch",
-      "id": "btnOk",
-      "top": 410,
-      "left": 760,
-      "attrs": {}
-    },
-
-    {
       "type": "chip-incu-ntc-skin",
       "id": "ntc",
       "top": 530,
@@ -268,16 +246,6 @@
     ["bb1:bp.18", "display:VCC", "red", []],
     ["bb1:bn.18", "display:GND", "black", []],
     ["telemetry:TX", "display:RX", "cyan", []],
-    ["bb1:bp.20", "btnPrev:1", "red", []],
-    ["bb1:bn.20", "btnPrev:3", "black", []],
-    ["btnPrev:2", "display:BTN_PREV", "yellow", []],
-    ["bb1:bp.20", "btnNext:1", "red", []],
-    ["bb1:bn.20", "btnNext:3", "black", []],
-    ["btnNext:2", "display:BTN_NEXT", "green", []],
-    ["bb1:bp.20", "btnOk:1", "red", []],
-    ["bb1:bn.20", "btnOk:3", "black", []],
-    ["btnOk:2", "display:BTN_OK", "orange", []],
-
     ["bb1:tp.1", "bb1:bp.1", "red", []],
     ["bb1:tn.1", "bb1:bn.1", "black", []]
   ]

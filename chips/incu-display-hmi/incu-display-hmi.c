@@ -133,6 +133,8 @@ static const uint8_t font5x7[96][5] = {
 #define UART_BUF_SIZE  512
 #define DISPLAY_W      480
 #define DISPLAY_H      320
+#define FOOTER_Y       296
+#define FOOTER_H        24
 #define BUTTON_DEBOUNCE_NS 120000000ULL
 
 // ─── Data Types ──────────────────────────────────────────────────
@@ -201,8 +203,11 @@ typedef struct {
   uint32_t       attr_control_mode, attr_language, attr_skin_enabled;
   uint32_t       attr_air_setpoint, attr_skin_setpoint, attr_hum_setpoint;
   uint32_t       attr_comm_timeout, attr_auto_request;
+  uint32_t       attr_touch_x, attr_touch_y, attr_touch_tap;
   uint64_t       boot_ns;
   uint64_t       last_btn_ns;
+  uint32_t       last_touch_tap;
+  int            touch_x, touch_y;
   screen_id_t    active_screen;
   bool           ui_locked;
 } chip_state_t;
@@ -300,6 +305,35 @@ static void nav_ok(chip_state_t *s) {
     s->ui_locked = true;
   }
   s->render.needs_redraw = true;
+}
+
+static void process_virtual_tap(chip_state_t *s, int x, int y) {
+  if (x < 0 || x >= DISPLAY_W || y < FOOTER_Y || y >= DISPLAY_H) return;
+  int zone = (x * 3) / DISPLAY_W;
+  if (zone == 0)
+    nav_prev(s);
+  else if (zone == 1)
+    nav_ok(s);
+  else
+    nav_next(s);
+}
+
+static void poll_touch_controls(chip_state_t *s) {
+  int x = (int)attr_read(s->attr_touch_x);
+  int y = (int)attr_read(s->attr_touch_y);
+  uint32_t tap = attr_read(s->attr_touch_tap) ? 1 : 0;
+
+  if (x < 0) x = 0;
+  if (x >= DISPLAY_W) x = DISPLAY_W - 1;
+  if (y < 0) y = 0;
+  if (y >= DISPLAY_H) y = DISPLAY_H - 1;
+  s->touch_x = x;
+  s->touch_y = y;
+
+  if (!s->last_touch_tap && tap)
+    process_virtual_tap(s, s->touch_x, s->touch_y);
+
+  s->last_touch_tap = tap;
 }
 
 // ─── Drawing Primitives ─────────────────────────────────────────
@@ -771,7 +805,7 @@ static void render_lock_screen(chip_state_t *s) {
 }
 
 static void render_footer(chip_state_t *s) {
-  fill_rect(s, 0, 296, 480, 24, COLOR_BG_HEADER);
+  fill_rect(s, 0, FOOTER_Y, DISPLAY_W, FOOTER_H, COLOR_BG_HEADER);
   // Serial number
   char line[80]; line[0] = '\0';
   strcat(line, "SN:");
@@ -866,6 +900,7 @@ static void on_uart_rx(void *user_data, uint8_t byte) {
 
 static void on_refresh_timer(void *user_data) {
   chip_state_t *s = (chip_state_t *)user_data;
+  poll_touch_controls(s);
   if (s->render.needs_redraw) {
     render_display(s);
     buffer_write(s->fb, 0, s->pixels, s->width * s->height * sizeof(uint32_t));
@@ -915,12 +950,18 @@ void chip_init(void) {
   s->attr_hum_setpoint  = attr_init_float("humSetpoint", 60.0f);
   s->attr_comm_timeout  = attr_init("commTimeoutMs", 3000);
   s->attr_auto_request  = attr_init("autoRequestState", 1);
+  s->attr_touch_x       = attr_init("touchX", 240);
+  s->attr_touch_y       = attr_init("touchY", 308);
+  s->attr_touch_tap     = attr_init("touchTap", 0);
 
   // Load initial setpoints from attributes
   s->state.air_setpoint  = attr_read_float(s->attr_air_setpoint);
   s->state.skin_setpoint = attr_read_float(s->attr_skin_setpoint);
   s->state.hum_setpoint  = attr_read_float(s->attr_hum_setpoint);
   s->state.control_mode  = (int)attr_read(s->attr_control_mode);
+  s->touch_x             = (int)attr_read(s->attr_touch_x);
+  s->touch_y             = (int)attr_read(s->attr_touch_y);
+  s->last_touch_tap      = attr_read(s->attr_touch_tap) ? 1 : 0;
 
   // UART
   const uart_config_t uart_cfg = {

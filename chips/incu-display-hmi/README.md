@@ -58,6 +58,12 @@ Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando 
 | commTimeoutMs | 3000 | Timeout comunicación (ms) |
 | autoRequestState | 1 | Solicitar estado al iniciar |
 
+### Emulación táctil (sin pulsadores físicos)
+
+En Wokwi puedes usar los controles `touchX` (0..479), `touchY` (0..319) y `touchTap` (0/1) para generar un tap virtual.
+La pulsación se procesa en el **flanco ascendente** de `touchTap` (cambiar de 0→1).
+Para navegar sin botones, usa `touchY` en el footer (`>=296`) y `touchX` por zonas: izquierda=PREV, centro=OK, derecha=NEXT.
+
 ### Interfaz Visual
 
 El display renderiza un dashboard médico con navegación interactiva (`BTN_PREV`, `BTN_NEXT`, `BTN_OK`):
