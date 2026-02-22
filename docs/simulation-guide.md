@@ -741,6 +741,8 @@ rfc2217ServerPort = 4000
 
 ### 6.3 Fichero `diagram.json`
 
+> **Disposición manual:** La posición de todos los componentes existentes en el diagrama (`top`, `left`) se establece siempre de forma manual. Wokwi no dispone de auto-layout, por lo que cada parte se coloca a mano para lograr una distribución legible y lógica. Al añadir o mover componentes, ajustar las coordenadas manualmente revisando el resultado visual en el simulador.
+
 ```json
 {
   "version": 1,
