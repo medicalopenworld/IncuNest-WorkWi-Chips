@@ -1,16 +1,16 @@
 [wokwi]
 version = 1
-firmware = "Incunest_v15/Firmware/MotherBoard/firmware.bin"
+firmware = "../../Incunest_v15/Firmware/MotherBoard/firmware.bin"
 gdbServerPort = 3335
 
 [[chip]]
 name = "incu-sts35-temp"
-binary = "chips/incu-sts35-temp/incu-sts35-temp.chip.wasm"
+binary = "../../chips/incu-sts35-temp/incu-sts35-temp.chip.wasm"
 
 [[chip]]
 name = "incu-sht4x-env"
-binary = "chips/incu-sht4x-env/incu-sht4x-env.chip.wasm"
+binary = "../../chips/incu-sht4x-env/incu-sht4x-env.chip.wasm"
 
 [[chip]]
 name = "incu-ina3221"
-binary = "chips/incu-ina3221/incu-ina3221.chip.wasm"
+binary = "../../chips/incu-ina3221/incu-ina3221.chip.wasm"

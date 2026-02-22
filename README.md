@@ -13,9 +13,12 @@ Mono-repo para simular IncuNest en Wokwi con custom chips, ejemplos y visor 3D.
 ## Estructura
 
 - `chips/`: modelos de sensores y actuadores (Wokwi Chips API en C)
-- `examples/`: diagramas Wokwi listos para simular
+  - `include/`: headers compartidos (modelos térmicos, tablas NTC)
+- `examples/`: diagramas Wokwi listos para simular (v14 + v15)
 - `viewer-3d/`: app Next.js para visualizar el ensamblaje 3D
-- `SIMULATION_GUIDE.md`: guía consolidada completa
+- `docs/`: documentación consolidada (ver [docs/README.md](docs/README.md))
+- `tools/`: scripts de build, validación y bridge
+- `Incunest_v15/`: firmware y BOM del hardware upstream
 
 ## Validación rápida
 
@@ -25,12 +28,48 @@ node tools/validate-configs.mjs
 
 ## Generación de binarios de chips
 
+### Docker (recomendado — multiplataforma)
+
 ```bash
-./tools/build-chips.sh
+# Recompilación completa (fuerza rebuild de todos los chips):
+docker run --rm -v "$PWD/chips:/src" wokwi/builder-clang-wasm:latest make -B
+
+# Compilación incremental (solo chips modificados):
+docker run --rm -v "$PWD/chips:/src" wokwi/builder-clang-wasm:latest make
 ```
 
-- Si tienes `wokwi-chip-builder`, compila los `.c` a `.chip.wasm`.
-- Si no está instalado, genera placeholders `.chip.wasm` válidos para que Wokwi no falle por binario faltante.
+### Script auxiliar (autodetecta toolchain)
+
+```bash
+./tools/build-chips.sh          # incremental
+./tools/build-chips.sh -B       # full rebuild
+```
+
+El script busca en orden: Docker → LLVM nativo → wokwi-cli.
+
+### Sin Docker (fallback nativo)
+
+<details>
+<summary>macOS (Homebrew)</summary>
+
+```bash
+brew install llvm wasi-libc
+make -C chips CC=/opt/homebrew/opt/llvm/bin/clang \
+     WASI_SYSROOT=/opt/homebrew/opt/wasi-libc/share/wasi-sysroot \
+     EXTRA_FLAGS="-nodefaultlibs -lc" -B
+```
+
+> ⚠️ Apple clang no soporta target `wasm32`. Se requiere Homebrew LLVM.
+</details>
+
+<details>
+<summary>Linux</summary>
+
+```bash
+sudo apt install lld clang wasi-libc
+make -C chips WASI_SYSROOT=/usr/share/wasi-sysroot -B
+```
+</details>
 
 ## Generación del modelo GLB para el visor 3D
 
@@ -45,5 +84,5 @@ python3 tools/convert-step-to-glb.py \
 
 1. Abre `examples/full-incubator-demo/` en VS Code.
 2. Instala y activa la extensión Wokwi.
-3. Ejecuta `./tools/build-chips.sh` para generar/compilar `.chip.wasm`.
+3. Ejecuta `./tools/build-chips.sh -B` para compilar los `.chip.wasm` (requiere Docker o LLVM nativo).
 4. Ejecuta `Wokwi: Start Simulator`.

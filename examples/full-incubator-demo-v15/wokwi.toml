@@ -1,0 +1,70 @@
+[wokwi]
+version = 1
+firmware = "../../Incunest_v15/Firmware/MotherBoard/firmware.bin"
+gdbServerPort = 3333
+rfc2217ServerPort = 4000
+
+# ── Sensores ──────────────────────────────────────────────
+[[chip]]
+name = "incu-ntc-skin"
+binary = "../../chips/incu-ntc-skin/incu-ntc-skin.chip.wasm"
+
+[[chip]]
+name = "incu-sts35-temp"
+binary = "../../chips/incu-sts35-temp/incu-sts35-temp.chip.wasm"
+
+[[chip]]
+name = "incu-sht4x-env"
+binary = "../../chips/incu-sht4x-env/incu-sht4x-env.chip.wasm"
+
+[[chip]]
+name = "incu-shtc3-env"
+binary = "../../chips/incu-shtc3-env/incu-shtc3-env.chip.wasm"
+
+[[chip]]
+name = "incu-ina3221"
+binary = "../../chips/incu-ina3221/incu-ina3221.chip.wasm"
+
+# ── SpO2 ──────────────────────────────────────────────────
+[[chip]]
+name = "incu-afe4490-spo2"
+binary = "../../chips/incu-afe4490-spo2/incu-afe4490-spo2.chip.wasm"
+
+# ── Actuadores ────────────────────────────────────────────
+[[chip]]
+name = "incu-heater-ssr"
+binary = "../../chips/incu-heater-ssr/incu-heater-ssr.chip.wasm"
+
+[[chip]]
+name = "incu-fan-pwm"
+binary = "../../chips/incu-fan-pwm/incu-fan-pwm.chip.wasm"
+
+[[chip]]
+name = "incu-humidifier"
+binary = "../../chips/incu-humidifier/incu-humidifier.chip.wasm"
+
+[[chip]]
+name = "incu-phototherapy"
+binary = "../../chips/incu-phototherapy/incu-phototherapy.chip.wasm"
+
+[[chip]]
+name = "incu-buzzer-alarm"
+binary = "../../chips/incu-buzzer-alarm/incu-buzzer-alarm.chip.wasm"
+
+[[chip]]
+name = "incu-door-touch"
+binary = "../../chips/incu-door-touch/incu-door-touch.chip.wasm"
+
+# ── Comunicaciones ────────────────────────────────────────
+[[chip]]
+name = "incu-sim800c-gprs"
+binary = "../../chips/incu-sim800c-gprs/incu-sim800c-gprs.chip.wasm"
+
+# ── Display / Telemetry ──────────────────────────────────
+[[chip]]
+name = "incu-display-hmi"
+binary = "../../chips/incu-display-hmi/incu-display-hmi.chip.wasm"
+
+[[chip]]
+name = "incu-telemetry-reporter"
+binary = "../../chips/incu-telemetry-reporter/incu-telemetry-reporter.chip.wasm"

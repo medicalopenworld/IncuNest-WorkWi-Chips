@@ -149,10 +149,61 @@ ALARMS_ID:
 - **MCU:** ESP32-S3-WROOM-1-N4R8 (4MB Flash, 8MB PSRAM)
 - **Resolución:** 800×480 TFT-LCD (panel TN)
 - **Driver display:** EK9716BD3 & EK73002ACGB (RGB paralelo)
-- **Touch:** Capacitivo
+  - **RGB Pins:** R: 14,21,47,48,45; G: 9,46,3,8,16,1; B: 15,7,6,5,4
+  - **Control Pins:** DE: 41, VSYNC: 40, HSYNC: 39, PCLK: 0
+  - **Timing:** H (40/48/40), V (1/31/13), PCLK 15MHz
+- **Touch:** Capacitivo (GT911) vía I2C (SDA:19, SCL:20)
+- **IO Expander:** PCA9557 (Control de Timing/Reset del Touch)
+  - **Init Sequence:** Reset -> IO0 Low -> IO0 High -> IO1 Input
+- **Comunicación con MotherBoard:** UART Serial (RX:48, TX:47 - **NOTA:** Conflicto con pines RGB R3/R2 en documentación, verificar HW real)
 - **GUI Framework:** LVGL 8.3.3 (SquareLine Studio)
-- **Comunicación con MotherBoard:** UART Serial
-- **IO Expander:** PCA9557 (V3.0 timing control)
+
+#### 2.8.1 Protocolo UART MotherBoard ↔ Display
+
+Baud rate: **115200, 8N1**, cada mensaje terminado en `\n`.
+
+**Pines UART según versión de hardware:**
+
+| HW Version | SERIAL2_TX | SERIAL2_RX |
+|------------|-----------|-----------|
+| v15 (MB)   | GPIO47    | GPIO48    |
+| v14 (MB)   | GPIO17    | GPIO16    |
+
+**MB → Display (prefijo `CTRL`):**
+
+1. **Telemetría** (~1 s):
+   ```
+   CTRL,TEL,<airTemp>,<skinTemp>,<humidity>[,<commStatus>]\n
+   ```
+2. **Estado completo** (bajo demanda):
+   ```
+   CTRL,STATE,<act>,<mode>,<airSet>,<skinSet>,<humSet>,<photo>,<mute>,<sn>,<hwNum>,<hwRev>,<fwVer>[,<numAlarms>,<skinE>,<commStatus>,<photoTime>]\n
+   ```
+   - `mode`: 0 = SKIN, 1 = AIR (constantes del firmware)
+   - `act`: bitmask (bit 0 = heater, bit 1 = fan)
+   - `photoTime`: formato MM.SS (e.g., 18.33 = 18 min 33 seg)
+   - El parser acepta 12–15 campos (retrocompatible)
+3. **Alarmas:**
+   ```
+   CTRL,ALM,<id>,<type>,<description>,<state>\n
+   ```
+
+**Display → MB (prefijo `HMI`):**
+
+1. **Comando de control:**
+   ```
+   HMI,<act>,<skinMode>,<controlMode>,<airTemp>,<skinTemp>,<humidity>,<photoMode>,<muteAlarm>,<language>,<photoMinutes>\n
+   ```
+2. **Solicitar estado completo:**
+   ```
+   HMI,REQ,STATE\n
+   ```
+3. **Credenciales WiFi:**
+   ```
+   HMI,WIFI,<ssid>,<password>\n
+   ```
+
+> **Fuente:** [medicalopenworld/IncuNest](https://github.com/medicalopenworld/IncuNest) — `Firmware/Display_HMI/src/CommTask.cpp`, `Firmware/Display_HMI/include/CommTask.h`
 
 ---
 
@@ -210,7 +261,7 @@ incunest-wokwi-chips/
 │       ├── incu-door-touch.c
 │       └── README.md
 │
-├── shared/                           # Código compartido (modelos térmicos)
+├── chips/include/                    # Código compartido (modelos térmicos, antes shared/)
 │   ├── thermal-model.h               # Modelo térmico cámara incubadora
 │   ├── ntc-tables.h                  # Tablas NTC Steinhart-Hart
 │   ├── pid-reference.h               # Constantes PID de referencia
@@ -244,7 +295,7 @@ incunest-wokwi-chips/
 ├── package.json                      # Mono-repo config
 ├── LICENSE
 ├── README.md
-└── SIMULATION_GUIDE.md               # ← ESTE DOCUMENTO
+└── docs/simulation-guide.md          # ← ESTE DOCUMENTO
 ```
 
 ---
@@ -846,13 +897,15 @@ rfc2217ServerPort = 4000
    cd incunest-wokwi-chips
    ```
 
-2. **Compilar los custom chips** (requiere wokwi-cli o wasm-pack):
+2. **Compilar los custom chips** (Docker recomendado):
    ```bash
-   # Para cada chip en chips/
-   cd chips/incu-ntc-skin
-   # Compilar C → WASM (usando SDK de Wokwi)
-   wokwi-chips-c-sdk build
+   # Recompilación completa (Docker — multiplataforma):
+   docker run --rm -v "$PWD/chips:/src" wokwi/builder-clang-wasm:latest make -B
+
+   # O usando el script auxiliar (autodetecta Docker → LLVM nativo):
+   ./tools/build-chips.sh -B
    ```
+   > Sin Docker: ver README.md sección "Sin Docker (fallback nativo)" para macOS/Linux.
 
 3. **Abrir en VS Code:**
    - Abrir la carpeta del proyecto
@@ -1228,7 +1281,7 @@ Se ejecutaron y completaron las siguientes acciones en este repositorio:
    - Se añadió `tools/generate-placeholder-wasm.mjs`
    - Se actualizó `tools/build-chips.sh` para fallback automático a placeholders cuando no existe `wokwi-chip-builder`
    - Se ajustaron rutas en `examples/*/wokwi.toml` a formato robusto (`chips/...`, `Incunest_v15/...`)
-   - Se crearon symlinks locales por ejemplo (`chips` e `Incunest_v15`) para que funcione tanto abriendo la raíz como la carpeta del ejemplo en VS Code
+   - Los `wokwi.toml` de cada ejemplo usan rutas relativas `../../` para referenciar chips y firmware desde la raíz del proyecto, sin necesidad de symlinks (compatible con Windows)
 
 9. **Corrección operativa visor 3D (GLB faltante)**
    - Se generó `viewer-3d/public/models/incubator.glb` a partir de `Incunest_v15/Mechanical/IN3_structure_v15.step`

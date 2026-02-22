@@ -1,13 +1,26 @@
+# Dependencies & build output
 node_modules/
 .next/
 dist/
 build/
-*.log
-*.swp
+
+# OS / IDE
 .DS_Store
+**/.DS_Store
+*.swp
+*.log
+.vscode/
+.idea/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Office temp files
+~$*
+
+# Large binary assets (download from upstream)
 viewer-3d/public/models/*.glb
 viewer-3d/public/models/*.gltf
 viewer-3d/public/models/*.bin
 viewer-3d/public/models/*.stl
 Incunest_v15/Mechanical/*.step
-Incunest_v15/Mechanical/~$*
