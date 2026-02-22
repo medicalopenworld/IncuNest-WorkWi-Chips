@@ -1,0 +1,9 @@
+{
+  "name": "IncuNest SHTC3 Ambient",
+  "author": "IncuNest Simulation",
+  "pins": ["SDA", "SCL", "VCC", "GND"],
+  "controls": [
+    {"id": "temperature", "label": "Temperature (°C)", "type": "range", "min": -10, "max": 60, "step": 0.1},
+    {"id": "humidity", "label": "Humidity (%RH)", "type": "range", "min": 0, "max": 100, "step": 1}
+  ]
+}

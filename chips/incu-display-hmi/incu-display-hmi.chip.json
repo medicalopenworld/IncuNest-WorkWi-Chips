@@ -1,0 +1,10 @@
+{
+  "name": "IncuNest Display HMI",
+  "author": "IncuNest",
+  "pins": ["RX", "TX", "VCC", "GND"],
+  "display": {
+    "width": 480,
+    "height": 320
+  },
+  "controls": []
+}

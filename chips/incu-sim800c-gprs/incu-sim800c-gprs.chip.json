@@ -1,0 +1,9 @@
+{
+  "name": "IncuNest SIM800C GPRS",
+  "author": "IncuNest Simulation",
+  "pins": ["RX", "TX", "PWRKEY", "VCC", "GND"],
+  "display": { "width": 140, "height": 60 },
+  "controls": [
+    { "id": "signalStrength", "label": "Signal (0-31)", "type": "range", "min": 0, "max": 31, "step": 1 }
+  ]
+}

@@ -4,23 +4,16 @@ import { useState } from "react";
 import { StatusPanel } from "@/components/status-panel";
 import { IncubatorViewer } from "@/components/incubator-viewer";
 import { PartsViewer } from "@/components/parts-viewer";
-import { useSimulatedTelemetry } from "@/hooks/use-simulated-telemetry";
 import { useWokwiTelemetry } from "@/hooks/use-wokwi-telemetry";
 
 const helpSteps = [
   "Asegura el modelo en viewer-3d/public/models/incubator.glb",
   "Inicia Wokwi en examples/full-incubator-demo/",
-  "Ejecuta 'node tools/wokwi-bridge.mjs' para conectar telemetría real",
-  "Pulsa 🔴 Live para conectar con el simulador Wokwi"
+  "Ejecuta 'node tools/wokwi-bridge.mjs' para conectar telemetría en tiempo real",
+  "La telemetría se actualiza automáticamente desde el simulador"
 ] as const;
 
 type ViewMode = "overview" | "parts";
-type TelemetrySource = "simulated" | "wokwi";
-
-function SimulatedProvider() {
-  useSimulatedTelemetry();
-  return null;
-}
 
 function WokwiProvider() {
   useWokwiTelemetry();
@@ -29,11 +22,10 @@ function WokwiProvider() {
 
 export default function HomePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("overview");
-  const [telemetrySource, setTelemetrySource] = useState<TelemetrySource>("simulated");
 
   return (
     <main className="page-shell page-shell--immersive">
-      {telemetrySource === "wokwi" ? <WokwiProvider /> : <SimulatedProvider />}
+      <WokwiProvider />
       <header className="topbar">
         <div className="topbar__brand">
           <p className="eyebrow">IncuNest Digital Twin</p>
@@ -85,22 +77,7 @@ export default function HomePage() {
             </button>
           </nav>
 
-          <nav className="view-toggle" aria-label="Fuente de telemetría">
-            <button
-              type="button"
-              className={telemetrySource === "simulated" ? "view-toggle__btn view-toggle__btn--active" : "view-toggle__btn"}
-              onClick={() => setTelemetrySource("simulated")}
-            >
-              🧪 Simulado
-            </button>
-            <button
-              type="button"
-              className={telemetrySource === "wokwi" ? "view-toggle__btn view-toggle__btn--active telemetry-live" : "view-toggle__btn"}
-              onClick={() => setTelemetrySource("wokwi")}
-            >
-              🔴 Live
-            </button>
-          </nav>
+          <span className="view-toggle__btn telemetry-live" style={{ cursor: "default" }}>🔴 Live</span>
         </div>
       </div>
 

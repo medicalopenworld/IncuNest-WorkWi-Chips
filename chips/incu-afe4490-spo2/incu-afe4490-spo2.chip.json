@@ -1,0 +1,9 @@
+{
+  "name": "IncuNest AFE4490 SpO2",
+  "author": "IncuNest Simulation",
+  "pins": ["CS", "MOSI", "MISO", "SCK", "ADC_RDY", "VCC", "GND"],
+  "controls": [
+    {"id": "spo2", "label": "SpO2 (%)", "type": "range", "min": 70, "max": 100, "step": 1},
+    {"id": "heartRate", "label": "Heart Rate (BPM)", "type": "range", "min": 40, "max": 220, "step": 1}
+  ]
+}

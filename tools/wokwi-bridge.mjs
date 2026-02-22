@@ -21,8 +21,16 @@ import { connect } from "net";
 import { WebSocketServer } from "ws";
 
 const SERIAL_HOST = "127.0.0.1";
-const SERIAL_PORT = parseInt(process.argv.find((_, i, a) => a[i - 1] === "--serial-port") ?? "4000");
-const WS_PORT = parseInt(process.argv.find((_, i, a) => a[i - 1] === "--ws-port") ?? "8081");
+const SERIAL_PORT = parseInt(
+  process.env.WOKWI_SERIAL_PORT ??
+  process.argv.find((_, i, a) => a[i - 1] === "--serial-port") ??
+  "4000"
+);
+const WS_PORT = parseInt(
+  process.env.WOKWI_WS_PORT ??
+  process.argv.find((_, i, a) => a[i - 1] === "--ws-port") ??
+  "8081"
+);
 
 // --- WebSocket server (broadcast to all viewer clients) ---
 const wss = new WebSocketServer({ port: WS_PORT });

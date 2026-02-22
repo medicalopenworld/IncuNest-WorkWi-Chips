@@ -2,6 +2,10 @@
   "name": "Incu Fan PWM",
   "author": "IncuNest Project",
   "pins": ["VCC", "GND", "PWM_IN", "TACH_OUT", "EN"],
+  "display": {
+    "width": 64,
+    "height": 64
+  },
   "controls": [
     {
       "id": "maxRpm",

@@ -2,6 +2,10 @@
   "name": "Incu Humidifier Slave",
   "author": "IncuNest Project",
   "pins": ["VCC", "GND", "SCL", "SDA"],
+  "display": {
+    "width": 64,
+    "height": 96
+  },
   "controls": [
     {
       "id": "waterLevel",

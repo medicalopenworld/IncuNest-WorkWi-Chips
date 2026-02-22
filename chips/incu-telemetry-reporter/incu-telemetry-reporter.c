@@ -24,6 +24,8 @@ typedef struct {
   uint32_t alarm_attr;
   uint32_t timer_id;
   uart_dev_t uart;
+  pin_t door_pin;
+  bool door_pin_connected;
 } chip_state_t;
 
 static void send_str(chip_state_t *chip, const char *s) {
@@ -38,7 +40,13 @@ static void on_timer(void *user_data) {
   float hum     = attr_read_float(chip->humidity_attr);
   float fan     = attr_read_float(chip->fan_rpm_attr);
   float heater  = attr_read_float(chip->heater_duty_attr);
-  float door    = attr_read_float(chip->door_open_attr);
+  // DOOR_IN pin (slide switch): HIGH=closed, LOW=open; fallback to attr slider
+  float door;
+  if (chip->door_pin_connected) {
+    door = (pin_read(chip->door_pin) == LOW) ? 1.0f : 0.0f;
+  } else {
+    door = attr_read_float(chip->door_open_attr);
+  }
   float alarm   = attr_read_float(chip->alarm_attr);
 
   char buf[192];
@@ -56,13 +64,15 @@ void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
   memset(chip, 0, sizeof(chip_state_t));
 
-  chip->chamber_temp_attr = attr_init_float("chamberTemp", 34.2f);
-  chip->skin_temp_attr    = attr_init_float("skinTemp", 36.6f);
-  chip->humidity_attr     = attr_init_float("humidity", 58.0f);
-  chip->fan_rpm_attr      = attr_init_float("fanRpm", 1200.0f);
-  chip->heater_duty_attr  = attr_init_float("heaterDuty", 42.0f);
+  chip->chamber_temp_attr = attr_init_float("chamberTemp", 0.0f);
+  chip->skin_temp_attr    = attr_init_float("skinTemp", 0.0f);
+  chip->humidity_attr     = attr_init_float("humidity", 0.0f);
+  chip->fan_rpm_attr      = attr_init_float("fanRpm", 0.0f);
+  chip->heater_duty_attr  = attr_init_float("heaterDuty", 0.0f);
   chip->door_open_attr    = attr_init_float("doorOpen", 0.0f);
   chip->alarm_attr        = attr_init_float("alarm", 0.0f);
+  chip->door_pin          = pin_init("DOOR_IN", INPUT_PULLUP);
+  chip->door_pin_connected = true;
 
   const uart_config_t uart_cfg = {
     .tx = pin_init("TX", OUTPUT),

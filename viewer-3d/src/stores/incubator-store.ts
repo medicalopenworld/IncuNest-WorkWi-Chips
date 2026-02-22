@@ -18,11 +18,11 @@ type IncubatorStore = {
 };
 
 export const initialTelemetry: IncubatorTelemetry = {
-  chamberTemp: 34.2,
-  skinTemp: 36.6,
-  humidity: 58,
-  fanRpm: 1200,
-  heaterDuty: 42,
+  chamberTemp: 0,
+  skinTemp: 0,
+  humidity: 0,
+  fanRpm: 0,
+  heaterDuty: 0,
   phototherapyDuty: 0,
   doorOpen: false,
   alarm: "NO_ALARMS",

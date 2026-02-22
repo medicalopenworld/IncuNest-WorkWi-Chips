@@ -1,0 +1,7 @@
+{
+  "name": "IncuNest Phototherapy LED",
+  "author": "IncuNest Simulation",
+  "pins": ["PWM_IN", "EN", "VCC", "GND"],
+  "display": { "width": 120, "height": 80 },
+  "controls": []
+}
