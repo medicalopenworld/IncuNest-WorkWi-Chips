@@ -50,21 +50,21 @@
     {
       "type": "chip-incu-sim800c-gprs",
       "id": "gprs",
-      "top": 700,
-      "left": -550,
+      "top": 600,
+      "left": -350,
       "attrs": { "signalStrength": "20" }
     },
     {
-      "type": "wokwi-buzzer",
+      "type": "chip-incu-buzzer-alarm",
       "id": "buzzer",
-      "top": 800,
+      "top": 700,
       "left": -550,
-      "attrs": { "volume": "0.1" }
+      "attrs": {}
     },
     {
       "type": "chip-incu-door-touch",
       "id": "door",
-      "top": 900,
+      "top": 800,
       "left": -550,
       "attrs": {}
     },
@@ -210,8 +210,9 @@
     ["esp32:38", "fan:TACH_OUT", "green", []],
     ["esp32:14", "fan:EN", "yellow", []],
 
-    ["esp32:5", "buzzer:PIN1", "orange", []],
-    ["bb1:bn.6", "buzzer:PIN2", "black", []],
+    ["bb1:bp.6", "buzzer:VCC", "red", []],
+    ["bb1:bn.6", "buzzer:GND", "black", []],
+    ["esp32:5", "buzzer:IN", "orange", []],
 
     ["bb1:bp.8", "door:VCC", "red", []],
     ["bb1:bn.8", "door:GND", "black", []],
