@@ -3,6 +3,8 @@
 > **Documento consolidado** que recopila toda la información necesaria para crear un simulador 100% virtual de la incubadora neonatal IncuNest (IN3ator) en Wokwi, integrando custom chips, VS Code, y un visor 3D en Next.js.
 >
 > Fuentes consultadas: Wokwi Chips API docs, código fuente IncuNest (medicalopenworld/IncuNest), Elecrow CrowPanel 7.0" HMI ESP32, documentación Wokwi VS Code Extension.
+>
+> **Actualización operativa (mode2):** para el flujo final de HMI interactivo v15 (controles PREV/NEXT/OK + lista de pantallas + limitaciones), usar `examples/full-incubator-demo-v15/README.md`.
 
 ---
 

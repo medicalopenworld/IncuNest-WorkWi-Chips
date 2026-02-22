@@ -39,7 +39,7 @@
 | Componente | Chip | Conexión |
 |-----------|------|----------|
 | Display CrowPanel | `incu-display-hmi` | RX ← telemetry:TX (visual) |
-| Telemetry Reporter | `incu-telemetry-reporter` | TX → ESP32 UART0 + display |
+| Telemetry Reporter | `incu-telemetry-reporter` | TX → display (stream CTRL simulado) |
 
 ### Indicadores (1)
 | Componente | Tipo | Pin |
@@ -74,11 +74,59 @@
 
 En el hardware real v15, el CrowPanel se comunica por **USB Host** (CDC ACM vía chip CH340C), gestionado por `CommTask.cpp`. Wokwi no soporta USB Host, por lo que en la simulación el display recibe datos del chip `incu-telemetry-reporter` como aproximación visual.
 
-## Quick Start
+## Quick Start (mode2)
+
+`mode2` en este repo es el flujo v15 más fiel para HMI interactivo en Wokwi:
+- escenario `examples/full-incubator-demo-v15/`
+- chip `incu-display-hmi` con navegación por `BTN_PREV`, `BTN_NEXT`, `BTN_OK`
+- wiring dedicado en `diagram.json` (switches `btnPrev`, `btnNext`, `btnOk`)
+- firmware real v15 cargado desde `../../Incunest_v15/Firmware/MotherBoard/firmware.bin`
+
+### Ejecución end-to-end (copy/paste)
 
 ```bash
-# 1. Compilar chips
-docker run --rm -v "$PWD/chips:/src" wokwi/builder-clang-wasm:latest make -B
-
-# 2. Abrir en VS Code → Wokwi: Start Simulator
+cd /path/to/IncuNest-WorkWi-Chips
+./tools/build-chips.sh -B
+cd examples/full-incubator-demo-v15
+test -f wokwi.toml && test -f diagram.json && test -f ../../Incunest_v15/Firmware/MotherBoard/firmware.bin
+code .
+# En VS Code: F1 → "Wokwi: Start Simulator"
 ```
+
+### Controles de pantalla (PREV/NEXT/OK)
+
+En el diagrama hay 3 `wokwi-slide-switch` a la derecha del display:
+- `btnPrev` → `display:BTN_PREV`
+- `btnNext` → `display:BTN_NEXT`
+- `btnOk` → `display:BTN_OK`
+
+Para simular una pulsación: mover el switch a **GND (LOW)** y volver a **VCC (HIGH)**.
+
+| Control | Acción |
+|---------|--------|
+| PREV | Pantalla anterior (cíclico) |
+| NEXT | Pantalla siguiente (cíclico) |
+| OK | BOOT→MAIN, LOCK↔UNLOCK, en ALARMS con alarmas activas alterna mute |
+
+> Cuando la UI está bloqueada, PREV/NEXT quedan deshabilitados hasta desbloquear con OK.
+
+### Pantallas disponibles (mode2)
+
+Orden de navegación: `BOOT → MAIN → SETTINGS → ALARMS → CHARTS → PULSEOXI → LOCK`.
+
+| Pantalla | Qué muestra |
+|----------|-------------|
+| BOOT | Estado de arranque y conexión (`Connecting...`, detección de stream) |
+| MAIN | Temperatura aire/piel, humedad, actuadores (heater/fan/photo/door), resumen de alarmas |
+| SETTINGS | Snapshot de configuración: modo AIR/SKIN, setpoints, idioma, timeout, estado de enlace |
+| ALARMS | Centro de alarmas (`CTRL,ALM`) con severidad/estado; desde aquí OK alterna mute si hay alarmas |
+| CHARTS | Barras en vivo (air/skin/humidity) y placeholder de histórico |
+| PULSEOXI | Placeholders de SpO₂/pulso + referencias disponibles (skin temp, puerta, alarm code) |
+| LOCK | Estado de bloqueo/desbloqueo de navegación |
+
+### Limitaciones conocidas vs CrowPanel real (v15)
+
+- **USB Host no simulado:** el hardware real usa USB Host CDC ACM (CH340C, `CommTask.cpp`), no disponible en Wokwi.
+- **Canal HMI simplificado:** en `mode2` el display consume stream simulado de `incu-telemetry-reporter`; no hay retorno cableado del display hacia la motherboard.
+- **UI aproximada:** se usa framebuffer 480×320 con botones PREV/NEXT/OK, no panel RGB táctil 800×480 + GT911/LVGL completo.
+- **Datos parciales:** `CHARTS` no incluye histórico real y `PULSEOXI` queda en placeholder hasta publicar esos campos en el stream.

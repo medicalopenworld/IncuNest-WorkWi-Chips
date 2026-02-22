@@ -28,6 +28,9 @@ Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando 
 |-----|-----------|-----------|-------------|
 | RX | Input | TX del ESP32 | Recibe CTRL,TEL/STATE/ALM |
 | TX | Output | RX del ESP32 | Envía HMI,REQ,STATE |
+| BTN_NEXT | Input (pull-up) | Pulsador a GND | Cambia a la siguiente pantalla |
+| BTN_PREV | Input (pull-up) | Pulsador a GND | Cambia a la pantalla anterior |
+| BTN_OK | Input (pull-up) | Pulsador a GND | Acción contextual / lock |
 | VCC | Power | 3.3V | Alimentación |
 | GND | Power | GND | Tierra |
 
@@ -57,13 +60,16 @@ Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando 
 
 ### Interfaz Visual
 
-El display renderiza un dashboard médico con:
+El display renderiza un dashboard médico con navegación interactiva (`BTN_PREV`, `BTN_NEXT`, `BTN_OK`):
+- **Intro/Boot**
 - **Header**: Modo (AIR/SKIN) + indicador conexión
-- **Panel temperatura**: Aire y piel (valor detectado + setpoint + barra progreso)
-- **Panel humedad**: Valor detectado + setpoint
-- **Estado actuadores**: Heater, Fan, Fototerapia, Puerta
-- **Panel alarmas**: Hasta 4 alarmas visibles con scroll
-- **Footer**: S/N, HW, FW, uptime
+- **Main**: Panel temperatura, humedad, actuadores y alarmas
+- **Settings**: Snapshot de setpoints/estado
+- **Alarms**: Lista ampliada de alarmas activas
+- **Charts**: Barras en vivo + placeholder de histórico
+- **PulseOxi**: Placeholders de SpO₂/pulso + datos disponibles
+- **Lock**: Bloqueo/desbloqueo de navegación
+- **Footer**: S/N, HW, FW, uptime y hint de navegación
 
 ### Ejemplo diagram.json
 

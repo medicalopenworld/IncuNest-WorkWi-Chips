@@ -1,7 +1,7 @@
 {
   "name": "IncuNest Display HMI",
   "author": "IncuNest",
-  "pins": ["RX", "TX", "VCC", "GND"],
+  "pins": ["RX", "TX", "BTN_NEXT", "BTN_PREV", "BTN_OK", "VCC", "GND"],
   "display": {
     "width": 480,
     "height": 320

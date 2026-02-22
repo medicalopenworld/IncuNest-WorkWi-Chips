@@ -133,8 +133,20 @@ static const uint8_t font5x7[96][5] = {
 #define UART_BUF_SIZE  512
 #define DISPLAY_W      480
 #define DISPLAY_H      320
+#define BUTTON_DEBOUNCE_NS 120000000ULL
 
 // ─── Data Types ──────────────────────────────────────────────────
+typedef enum {
+  SCREEN_BOOT = 0,
+  SCREEN_MAIN,
+  SCREEN_SETTINGS,
+  SCREEN_ALARMS,
+  SCREEN_CHARTS,
+  SCREEN_PULSEOXI,
+  SCREEN_LOCK,
+  SCREEN_COUNT
+} screen_id_t;
+
 typedef struct {
   int  id;
   int  type;   // 0=info, 1=warning, 2=critical
@@ -176,6 +188,7 @@ typedef struct {
   timer_t        watchdog_timer;
   uint32_t       width, height;
   uint32_t      *pixels;
+  pin_t          btn_next, btn_prev, btn_ok;
   char           rx_buf[UART_BUF_SIZE];
   int            rx_len;
   bool           rx_overflow;
@@ -189,6 +202,9 @@ typedef struct {
   uint32_t       attr_air_setpoint, attr_skin_setpoint, attr_hum_setpoint;
   uint32_t       attr_comm_timeout, attr_auto_request;
   uint64_t       boot_ns;
+  uint64_t       last_btn_ns;
+  screen_id_t    active_screen;
+  bool           ui_locked;
 } chip_state_t;
 
 // ─── Number-to-string helpers (WASI has no %f in snprintf) ───────
@@ -229,6 +245,61 @@ static char *next_csv(char **p) {
   char *c = strchr(start, ',');
   if (c) { *c = '\0'; *p = c + 1; } else { *p = NULL; }
   return start;
+}
+
+static const char *screen_name(screen_id_t scr) {
+  switch (scr) {
+    case SCREEN_BOOT:     return "BOOT";
+    case SCREEN_MAIN:     return "MAIN";
+    case SCREEN_SETTINGS: return "SETTINGS";
+    case SCREEN_ALARMS:   return "ALARMS";
+    case SCREEN_CHARTS:   return "CHARTS";
+    case SCREEN_PULSEOXI: return "PULSEOXI";
+    case SCREEN_LOCK:     return "LOCK";
+    default:              return "MAIN";
+  }
+}
+
+static const char *mode_name(int mode) {
+  return mode ? "AIR" : "SKIN";
+}
+
+static const char *language_name(int lang) {
+  switch (lang) {
+    case 1: return "ES";
+    case 2: return "FR";
+    case 3: return "PT";
+    default: return "EN";
+  }
+}
+
+static void nav_prev(chip_state_t *s) {
+  if (s->ui_locked && s->active_screen != SCREEN_LOCK) return;
+  s->active_screen = (screen_id_t)((s->active_screen + SCREEN_COUNT - 1) % SCREEN_COUNT);
+  s->render.needs_redraw = true;
+}
+
+static void nav_next(chip_state_t *s) {
+  if (s->ui_locked && s->active_screen != SCREEN_LOCK) return;
+  s->active_screen = (screen_id_t)((s->active_screen + 1) % SCREEN_COUNT);
+  s->render.needs_redraw = true;
+}
+
+static void nav_ok(chip_state_t *s) {
+  if (s->active_screen == SCREEN_BOOT) {
+    s->active_screen = SCREEN_MAIN;
+  } else if (s->active_screen == SCREEN_LOCK) {
+    s->ui_locked = !s->ui_locked;
+    if (!s->ui_locked) s->active_screen = SCREEN_MAIN;
+  } else if (s->ui_locked) {
+    s->active_screen = SCREEN_LOCK;
+  } else if (s->active_screen == SCREEN_ALARMS && s->alarm_count > 0) {
+    s->state.mute = s->state.mute ? 0 : 1;
+  } else {
+    s->active_screen = SCREEN_LOCK;
+    s->ui_locked = true;
+  }
+  s->render.needs_redraw = true;
 }
 
 // ─── Drawing Primitives ─────────────────────────────────────────
@@ -388,6 +459,8 @@ static void parse_message(chip_state_t *s) {
     parse_ctrl_state(s);
   else if (strncmp(s->rx_buf, "CTRL,ALM,", 9) == 0)
     parse_ctrl_alarm(s);
+  if (s->active_screen == SCREEN_BOOT && (s->telemetry.valid || s->state.valid))
+    s->active_screen = SCREEN_MAIN;
   s->render.needs_redraw = true;
 }
 
@@ -397,16 +470,24 @@ static void render_boot_screen(chip_state_t *s) {
   draw_string_centered(s, 240, 140, "Neonatal Incubator", COLOR_TEXT_SECONDARY, 2);
   if (s->render.blink_phase)
     draw_string_centered(s, 240, 180, "Connecting...", COLOR_CONN_WAIT, 2);
-  draw_string_centered(s, 240, 220, "Waiting for motherboard", COLOR_TEXT_DIM, 1);
+  draw_string_centered(s, 240, 220,
+                       s->conn.msg_count > 0 ? "Data stream detected" : "Waiting for motherboard",
+                       COLOR_TEXT_DIM, 1);
+  draw_string_centered(s, 240, 238, "NEXT/PREV: browse screens", COLOR_TEXT_DIM, 1);
+  draw_string_centered(s, 240, 250, "OK: continue or lock", COLOR_TEXT_DIM, 1);
 }
 
 static void render_header(chip_state_t *s) {
   fill_rect(s, 0, 0, 480, 30, COLOR_BG_HEADER);
   draw_string(s, 8, 7, "IncuNest", COLOR_TEXT_PRIMARY, 2);
   // Mode indicator
-  // Firmware: 0=SKIN, 1=AIR
-  const char *mode = s->state.control_mode ? "AIR MODE" : "SKIN MODE";
-  draw_string_centered(s, 240, 10, mode, COLOR_TEXT_SECONDARY, 1);
+  const char *mode = s->state.valid ? mode_name(s->state.control_mode) : "N/A";
+  char mode_line[20]; mode_line[0] = '\0';
+  strcat(mode_line, mode); strcat(mode_line, " MODE");
+  draw_string_centered(s, 240, 10, mode_line, COLOR_TEXT_SECONDARY, 1);
+  draw_string(s, 300, 10, screen_name(s->active_screen), COLOR_TEXT_DIM, 1);
+  if (s->ui_locked)
+    draw_string(s, 360, 10, "LCK", COLOR_ALARM_WARN, 1);
   // Connection LED
   uint32_t led_color = s->conn.connected ? COLOR_CONN_OK : COLOR_CONN_LOST;
   draw_circle(s, 430, 15, 5, led_color);
@@ -533,41 +614,7 @@ static void render_alarm_panel(chip_state_t *s) {
     draw_string(s, 10, 248, "(no active alarms)", COLOR_TEXT_DIM, 1);
 }
 
-static void render_footer(chip_state_t *s) {
-  fill_rect(s, 0, 302, 480, 18, COLOR_BG_HEADER);
-  // Serial number
-  char line[80]; line[0] = '\0';
-  strcat(line, "SN:");
-  strcat(line, s->state.serial_number[0] ? s->state.serial_number : "---");
-  strcat(line, "  HW:");
-  strcat(line, s->state.hw_number[0] ? s->state.hw_number : "---");
-  strcat(line, "  FW:");
-  strcat(line, s->state.fw_version[0] ? s->state.fw_version : "---");
-  draw_string(s, 8, 307, line, COLOR_TEXT_DIM, 1);
-  // Uptime
-  uint64_t up_s = (get_sim_nanos() - s->boot_ns) / 1000000000ULL;
-  int h = (int)(up_s / 3600); int m = (int)((up_s % 3600) / 60); int sec = (int)(up_s % 60);
-  char ut[16];
-  ut[0] = '0' + (h/10); ut[1] = '0' + (h%10); ut[2] = ':';
-  ut[3] = '0' + (m/10); ut[4] = '0' + (m%10); ut[5] = ':';
-  ut[6] = '0' + (sec/10); ut[7] = '0' + (sec%10); ut[8] = '\0';
-  draw_string(s, 400, 307, ut, COLOR_TEXT_DIM, 1);
-}
-
-static void render_comm_lost_overlay(chip_state_t *s) {
-  // Semi-transparent dark overlay (just darken center area)
-  fill_rect(s, 120, 130, 240, 60, 0x000000CC);
-  if (s->render.blink_phase)
-    draw_string_centered(s, 240, 150, "COMM LOST", COLOR_ALARM_CRIT, 3);
-}
-
-static void render_display(chip_state_t *s) {
-  fill_rect(s, 0, 0, s->width, s->height, COLOR_BG_DARK);
-  if (!s->telemetry.valid && !s->state.valid) {
-    render_boot_screen(s);
-    return;
-  }
-  render_header(s);
+static void render_main_screen(chip_state_t *s) {
   bool tv = s->telemetry.valid && s->conn.connected;
   render_temp_panel(s, 2, 32, "AIR TEMPERATURE",
                     s->telemetry.air_temp, s->state.air_setpoint,
@@ -579,12 +626,223 @@ static void render_display(chip_state_t *s) {
   render_humidity_bar(s);
   render_actuator_row(s);
   render_alarm_panel(s);
+}
+
+static void draw_settings_row(chip_state_t *s, int y, const char *label, const char *value, uint32_t value_color) {
+  draw_string(s, 14, y, label, COLOR_TEXT_SECONDARY, 1);
+  draw_string(s, 248, y, value, value_color, 1);
+}
+
+static void render_settings_screen(chip_state_t *s) {
+  fill_rect(s, 2, 32, 476, 264, COLOR_BG_PANEL);
+  draw_string(s, 12, 40, "SETTINGS", COLOR_TEXT_PRIMARY, 2);
+  draw_string(s, 190, 44, "Live configuration snapshot", COLOR_TEXT_DIM, 1);
+
+  int y = 70;
+  char v[40], n[16];
+  draw_settings_row(s, y, "Control mode", mode_name(s->state.control_mode), COLOR_TEXT_PRIMARY); y += 20;
+  float_to_str(s->state.air_setpoint, n, 1); v[0] = '\0'; strcat(v, n); strcat(v, " C");
+  draw_settings_row(s, y, "Air setpoint", v, COLOR_SETPOINT); y += 20;
+  float_to_str(s->state.skin_setpoint, n, 1); v[0] = '\0'; strcat(v, n); strcat(v, " C");
+  draw_settings_row(s, y, "Skin setpoint", v, COLOR_SETPOINT); y += 20;
+  float_to_str(s->state.hum_setpoint, n, 0); v[0] = '\0'; strcat(v, n); strcat(v, " %");
+  draw_settings_row(s, y, "Humidity setpoint", v, COLOR_SETPOINT); y += 20;
+  draw_settings_row(s, y, "Skin sensor", attr_read(s->attr_skin_enabled) ? "ENABLED" : "DISABLED", COLOR_TEXT_PRIMARY); y += 20;
+  draw_settings_row(s, y, "Language", language_name((int)attr_read(s->attr_language)), COLOR_TEXT_PRIMARY); y += 20;
+  int_to_str((int)attr_read(s->attr_comm_timeout), n); v[0] = '\0'; strcat(v, n); strcat(v, " ms");
+  draw_settings_row(s, y, "Comm timeout", v, COLOR_TEXT_PRIMARY); y += 20;
+  draw_settings_row(s, y, "Comm link", s->conn.connected ? "ONLINE" : "LOST", s->conn.connected ? COLOR_CONN_OK : COLOR_CONN_LOST); y += 20;
+  draw_settings_row(s, y, "Auto state request", attr_read(s->attr_auto_request) ? "ON" : "OFF", COLOR_TEXT_PRIMARY);
+
+  if (!s->state.valid)
+    draw_string(s, 12, 268, "STATE frame pending: showing local defaults", COLOR_ALARM_WARN, 1);
+}
+
+static void render_alarms_screen(chip_state_t *s) {
+  fill_rect(s, 2, 32, 476, 264, COLOR_BG_PANEL);
+  draw_string(s, 12, 40, "ALARM CENTER", COLOR_TEXT_PRIMARY, 2);
+  char hdr[64]; hdr[0] = '\0';
+  strcat(hdr, "Active:");
+  char n[12]; int_to_str(s->alarm_count, n); strcat(hdr, n);
+  strcat(hdr, "  Mute:");
+  strcat(hdr, s->state.mute ? "ON" : "OFF");
+  draw_string(s, 220, 44, hdr, COLOR_TEXT_DIM, 1);
+
+  if (s->alarm_count == 0) {
+    draw_string_centered(s, 240, 124, "No active alarms", COLOR_CONN_OK, 2);
+    draw_string_centered(s, 240, 146, "CTRL,ALM data will appear here", COLOR_TEXT_DIM, 1);
+    return;
+  }
+
+  int row = 0;
+  for (int i = 0; i < MAX_ALARMS && row < 9; i++) {
+    if (s->alarms[i].id == 0) continue;
+    int y = 70 + row * 24;
+    uint32_t ac = s->alarms[i].type == 2 ? COLOR_ALARM_CRIT :
+                  s->alarms[i].type == 1 ? COLOR_ALARM_WARN : COLOR_FAN_ON;
+    char left[40]; left[0] = '\0';
+    strcat(left, "ALM-");
+    int_to_str(s->alarms[i].id, n); strcat(left, n);
+    strcat(left, " ");
+    strcat(left, s->alarms[i].type == 2 ? "CRIT" : s->alarms[i].type == 1 ? "WARN" : "INFO");
+    const char *state_txt = s->alarms[i].state == 2 ? "ACK" : s->alarms[i].state == 1 ? "ACTIVE" : "OFF";
+    draw_string(s, 10, y, left, ac, 1);
+    draw_string(s, 102, y, state_txt, ac, 1);
+    draw_string(s, 150, y, s->alarms[i].desc[0] ? s->alarms[i].desc : "(no description)", COLOR_TEXT_SECONDARY, 1);
+    row++;
+  }
+}
+
+static void render_charts_screen(chip_state_t *s) {
+  bool valid = s->telemetry.valid && s->conn.connected;
+  fill_rect(s, 2, 32, 476, 264, COLOR_BG_PANEL);
+  draw_string(s, 12, 40, "CHARTS", COLOR_TEXT_PRIMARY, 2);
+  draw_string(s, 120, 44, "Live bars + trend placeholders", COLOR_TEXT_DIM, 1);
+
+  char val[20];
+  draw_string(s, 12, 78, "Air temp", COLOR_TEXT_SECONDARY, 1);
+  if (valid) { float_to_str(s->telemetry.air_temp, val, 1); strcat(val, " C"); }
+  else strcpy(val, "--.- C");
+  draw_string(s, 96, 78, val, COLOR_TEMP_AIR, 1);
+  draw_progress_bar(s, 170, 78, 290, 10, valid ? s->telemetry.air_temp : 0.0f, 20.0f, 42.0f, COLOR_TEMP_AIR, COLOR_OFF_GRAY);
+
+  draw_string(s, 12, 114, "Skin temp", COLOR_TEXT_SECONDARY, 1);
+  if (valid) { float_to_str(s->telemetry.skin_temp, val, 1); strcat(val, " C"); }
+  else strcpy(val, "--.- C");
+  draw_string(s, 96, 114, val, COLOR_TEMP_SKIN, 1);
+  draw_progress_bar(s, 170, 114, 290, 10, valid ? s->telemetry.skin_temp : 0.0f, 20.0f, 42.0f, COLOR_TEMP_SKIN, COLOR_OFF_GRAY);
+
+  draw_string(s, 12, 150, "Humidity", COLOR_TEXT_SECONDARY, 1);
+  if (valid) { float_to_str(s->telemetry.humidity, val, 1); strcat(val, " %"); }
+  else strcpy(val, "--.- %");
+  draw_string(s, 96, 150, val, COLOR_HUMIDITY, 1);
+  draw_progress_bar(s, 170, 150, 290, 10, valid ? s->telemetry.humidity : 0.0f, 0.0f, 100.0f, COLOR_HUMIDITY, COLOR_OFF_GRAY);
+
+  draw_string(s, 12, 196, "Trend history:", COLOR_TEXT_SECONDARY, 1);
+  draw_string(s, 102, 196, "N/A in simulator (showing latest sample only)", COLOR_ALARM_WARN, 1);
+  draw_string(s, 12, 216, "Future MB stream keys:", COLOR_TEXT_SECONDARY, 1);
+  draw_string(s, 140, 216, "air_hist skin_hist hum_hist", COLOR_TEXT_DIM, 1);
+}
+
+static void render_pulseoxi_screen(chip_state_t *s) {
+  fill_rect(s, 2, 32, 476, 264, COLOR_BG_PANEL);
+  draw_string(s, 12, 40, "PULSE OXIMETRY", COLOR_TEXT_PRIMARY, 2);
+  draw_string(s, 190, 44, "SpO2/PR not present on CTRL stream", COLOR_TEXT_DIM, 1);
+
+  fill_rect(s, 24, 72, 204, 108, COLOR_BG_HEADER);
+  fill_rect(s, 252, 72, 204, 108, COLOR_BG_HEADER);
+  draw_string_centered(s, 126, 88, "SpO2", COLOR_TEXT_SECONDARY, 2);
+  draw_string_centered(s, 126, 122, "-- %", COLOR_ALARM_WARN, 3);
+  draw_string_centered(s, 354, 88, "PULSE", COLOR_TEXT_SECONDARY, 2);
+  draw_string_centered(s, 354, 122, "--- bpm", COLOR_ALARM_WARN, 2);
+
+  char line[64], n[20];
+  line[0] = '\0';
+  strcat(line, "Skin temp ref: ");
+  if (s->telemetry.valid) { float_to_str(s->telemetry.skin_temp, n, 1); strcat(line, n); strcat(line, " C"); }
+  else strcat(line, "--.- C");
+  draw_string(s, 24, 198, line, COLOR_TEXT_SECONDARY, 1);
+
+  line[0] = '\0';
+  strcat(line, "Door state: ");
+  strcat(line, s->telemetry.door_open ? "OPEN" : "CLOSED");
+  strcat(line, "   Alarm code: ");
+  int_to_str(s->telemetry.alarm_code, n); strcat(line, n);
+  draw_string(s, 24, 214, line, COLOR_TEXT_SECONDARY, 1);
+  draw_string(s, 24, 234, "Placeholder shown until MB publishes SpO2/pulse telemetry", COLOR_TEXT_DIM, 1);
+}
+
+static void render_lock_screen(chip_state_t *s) {
+  fill_rect(s, 2, 32, 476, 264, COLOR_BG_PANEL);
+  draw_string_centered(s, 240, 72, "LOCK SCREEN", COLOR_TEXT_PRIMARY, 3);
+  if (s->ui_locked) {
+    draw_string_centered(s, 240, 126, "CONTROLS LOCKED", COLOR_ALARM_WARN, 2);
+    draw_string_centered(s, 240, 154, "NEXT/PREV disabled", COLOR_TEXT_SECONDARY, 1);
+    draw_string_centered(s, 240, 170, "Press OK to unlock", COLOR_SETPOINT, 1);
+  } else {
+    draw_string_centered(s, 240, 126, "Controls currently unlocked", COLOR_CONN_OK, 2);
+    draw_string_centered(s, 240, 154, "Press OK to lock navigation", COLOR_TEXT_SECONDARY, 1);
+    draw_string_centered(s, 240, 170, "NEXT/PREV keeps browsing screens", COLOR_TEXT_SECONDARY, 1);
+  }
+  char line[40]; line[0] = '\0';
+  strcat(line, "Active alarms: ");
+  char n[12]; int_to_str(s->alarm_count, n); strcat(line, n);
+  draw_string_centered(s, 240, 212, line, COLOR_TEXT_DIM, 1);
+}
+
+static void render_footer(chip_state_t *s) {
+  fill_rect(s, 0, 296, 480, 24, COLOR_BG_HEADER);
+  // Serial number
+  char line[80]; line[0] = '\0';
+  strcat(line, "SN:");
+  strcat(line, s->state.serial_number[0] ? s->state.serial_number : "---");
+  strcat(line, "  HW:");
+  strcat(line, s->state.hw_number[0] ? s->state.hw_number : "---");
+  strcat(line, "  FW:");
+  strcat(line, s->state.fw_version[0] ? s->state.fw_version : "---");
+  draw_string(s, 8, 299, line, COLOR_TEXT_DIM, 1);
+  // Uptime
+  uint64_t up_s = (get_sim_nanos() - s->boot_ns) / 1000000000ULL;
+  int h = (int)(up_s / 3600); int m = (int)((up_s % 3600) / 60); int sec = (int)(up_s % 60);
+  char ut[16];
+  ut[0] = '0' + (h/10); ut[1] = '0' + (h%10); ut[2] = ':';
+  ut[3] = '0' + (m/10); ut[4] = '0' + (m%10); ut[5] = ':';
+  ut[6] = '0' + (sec/10); ut[7] = '0' + (sec%10); ut[8] = '\0';
+  draw_string(s, 400, 299, ut, COLOR_TEXT_DIM, 1);
+  line[0] = '\0';
+  strcat(line, "[");
+  strcat(line, screen_name(s->active_screen));
+  strcat(line, "] PREV/NEXT=SCREEN  OK=ACTION");
+  if (s->ui_locked) strcat(line, " (LOCKED)");
+  draw_string(s, 8, 309, line, COLOR_TEXT_DIM, 1);
+}
+
+static void render_comm_lost_overlay(chip_state_t *s) {
+  // Semi-transparent dark overlay (just darken center area)
+  fill_rect(s, 120, 130, 240, 60, 0x000000CC);
+  if (s->render.blink_phase)
+    draw_string_centered(s, 240, 150, "COMM LOST", COLOR_ALARM_CRIT, 3);
+}
+
+static void render_display(chip_state_t *s) {
+  fill_rect(s, 0, 0, s->width, s->height, COLOR_BG_DARK);
+  if (s->active_screen == SCREEN_BOOT) {
+    render_boot_screen(s);
+    render_footer(s);
+    return;
+  }
+  render_header(s);
+  switch (s->active_screen) {
+    case SCREEN_MAIN:     render_main_screen(s); break;
+    case SCREEN_SETTINGS: render_settings_screen(s); break;
+    case SCREEN_ALARMS:   render_alarms_screen(s); break;
+    case SCREEN_CHARTS:   render_charts_screen(s); break;
+    case SCREEN_PULSEOXI: render_pulseoxi_screen(s); break;
+    case SCREEN_LOCK:     render_lock_screen(s); break;
+    case SCREEN_BOOT:
+    default:              render_boot_screen(s); break;
+  }
   render_footer(s);
   if (!s->conn.connected && s->conn.msg_count > 0)
     render_comm_lost_overlay(s);
 }
 
 // ─── Callbacks ───────────────────────────────────────────────────
+static void on_button_change(void *user_data, pin_t pin, uint32_t value) {
+  chip_state_t *s = (chip_state_t *)user_data;
+  if (value != LOW) return;
+  uint64_t now = get_sim_nanos();
+  if (now - s->last_btn_ns < BUTTON_DEBOUNCE_NS) return;
+  s->last_btn_ns = now;
+
+  if (pin == s->btn_next)
+    nav_next(s);
+  else if (pin == s->btn_prev)
+    nav_prev(s);
+  else if (pin == s->btn_ok)
+    nav_ok(s);
+}
+
 static void on_uart_rx(void *user_data, uint8_t byte) {
   chip_state_t *s = (chip_state_t *)user_data;
   if (byte == '\n' || byte == '\r') {
@@ -673,10 +931,22 @@ void chip_init(void) {
     .user_data = s,
   };
   s->uart = uart_init(&uart_cfg);
+  s->btn_next = pin_init("BTN_NEXT", INPUT_PULLUP);
+  s->btn_prev = pin_init("BTN_PREV", INPUT_PULLUP);
+  s->btn_ok   = pin_init("BTN_OK", INPUT_PULLUP);
+  const pin_watch_config_t btn_watch = {
+    .edge = BOTH,
+    .pin_change = on_button_change,
+    .user_data = s,
+  };
+  pin_watch(s->btn_next, &btn_watch);
+  pin_watch(s->btn_prev, &btn_watch);
+  pin_watch(s->btn_ok, &btn_watch);
 
   // Boot timestamp & initial render
   s->boot_ns = get_sim_nanos();
   s->conn.last_msg_ns = s->boot_ns;
+  s->active_screen = SCREEN_BOOT;
   s->render.needs_redraw = true;
   render_display(s);
   buffer_write(s->fb, 0, s->pixels, s->width * s->height * sizeof(uint32_t));
