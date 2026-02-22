@@ -178,7 +178,7 @@ static bool on_i2c_write(void *user_data, uint8_t data) {
 void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
   chip->water_level_attr = attr_init("waterLevel", 80);
-  chip->address_attr = attr_init("address", 0x42);
+  chip->address_attr = attr_init("address", 0x02);
   chip->duty_cycle = 0;
   chip->read_index = 0;
   chip->write_index = 0;
@@ -198,8 +198,9 @@ void chip_init(void) {
   timer_start(timer, 50000, true); // 20 FPS (50ms)
 
   uint32_t address = attr_read(chip->address_attr);
-  if (address < 0x08 || address > 0x77) {
-    address = 0x42;
+  // IncuNest humidifier uses 0x02 (reserved range but valid for this device)
+  if (address == 0 || address > 0x77) {
+    address = 0x02;
   }
 
   const i2c_config_t i2c_config = {
