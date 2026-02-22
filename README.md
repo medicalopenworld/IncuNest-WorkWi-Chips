@@ -91,4 +91,8 @@ python3 tools/convert-step-to-glb.py \
 3. Ejecuta `./tools/build-chips.sh -B` para compilar los `.chip.wasm` (requiere Docker o LLVM nativo).
 4. Ejecuta `Wokwi: Start Simulator`.
 
+### Captura Wokwi (VS Code Insiders)
+
+![Wokwi en VS Code Insiders](docs/screenshot-vscode-insiders.png)
+
 > **Disposición manual:** La posición de los componentes en `diagram.json` (`top`, `left`) se establece siempre de forma manual. Wokwi no tiene auto-layout; al añadir o mover partes, ajustar coordenadas revisando el resultado en el simulador.
