@@ -19,6 +19,7 @@
 |---------|-------------|
 | [screenshot-overview.png](screenshot-overview.png) | Vista general de la simulación |
 | [screenshot-parts.png](screenshot-parts.png) | Detalle de componentes |
+| [screenshot-vscode-insiders.png](screenshot-vscode-insiders.png) | Captura en Visual Studio Code - Insiders |
 
 ## Documentación por chip
 

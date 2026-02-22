@@ -20,7 +20,7 @@ Simula la pantalla CrowPanel 7.0" HMI V3.0 (ESP32-S3, 800×480) que se comunica 
 
 ## Simulación en Wokwi
 
-Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando la API framebuffer (480×320 pixels) y el protocolo UART real del firmware IncuNest.
+Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando la API framebuffer (800×480) y el protocolo UART real del firmware IncuNest.
 
 ### Pines
 
@@ -31,6 +31,8 @@ Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando 
 | BTN_NEXT | Input (pull-up) | Pulsador a GND | Cambia a la siguiente pantalla |
 | BTN_PREV | Input (pull-up) | Pulsador a GND | Cambia a la pantalla anterior |
 | BTN_OK | Input (pull-up) | Pulsador a GND | Acción contextual / lock |
+| BTN_UP | Input (pull-up) | Pulsador a GND | Navegación vertical arriba (SETTINGS/ALARMS) |
+| BTN_DOWN | Input (pull-up) | Pulsador a GND | Navegación vertical abajo (SETTINGS/ALARMS) |
 | VCC | Power | 3.3V | Alimentación |
 | GND | Power | GND | Tierra |
 
@@ -58,15 +60,9 @@ Al no soportar Wokwi displays RGB paralelo, este chip simula la pantalla usando 
 | commTimeoutMs | 3000 | Timeout comunicación (ms) |
 | autoRequestState | 1 | Solicitar estado al iniciar |
 
-### Emulación táctil (sin pulsadores físicos)
-
-En Wokwi puedes usar los controles `touchX` (0..479), `touchY` (0..319) y `touchTap` (0/1) para generar un tap virtual.
-La pulsación se procesa en el **flanco ascendente** de `touchTap` (cambiar de 0→1).
-Para navegar sin botones, usa `touchY` en el footer (`>=296`) y `touchX` por zonas: izquierda=PREV, centro=OK, derecha=NEXT.
-
 ### Interfaz Visual
 
-El display renderiza un dashboard médico con navegación interactiva (`BTN_PREV`, `BTN_NEXT`, `BTN_OK`):
+El display renderiza un dashboard médico con navegación interactiva (`BTN_PREV`, `BTN_NEXT`, `BTN_OK`, `BTN_UP`, `BTN_DOWN`):
 - **Intro/Boot**
 - **Header**: Modo (AIR/SKIN) + indicador conexión
 - **Main**: Panel temperatura, humedad, actuadores y alarmas
@@ -76,6 +72,12 @@ El display renderiza un dashboard médico con navegación interactiva (`BTN_PREV
 - **PulseOxi**: Placeholders de SpO₂/pulso + datos disponibles
 - **Lock**: Bloqueo/desbloqueo de navegación
 - **Footer**: S/N, HW, FW, uptime y hint de navegación
+
+`BTN_UP/BTN_DOWN` hacen navegación vertical en pantalla:
+- **SETTINGS**: selección de fila con scroll.
+- **ALARMS**: selección de alarma activa.
+
+`BTN_OK` en **SETTINGS** aplica cambios en la fila seleccionada (incluyendo ciclo de `Language`).
 
 ### Ejemplo diagram.json
 

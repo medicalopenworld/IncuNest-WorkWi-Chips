@@ -73,8 +73,43 @@
       "type": "chip-incu-display-hmi",
       "id": "display",
       "top": 300,
-      "left": 500,
+      "left": 340,
       "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnPrev",
+      "top": 500,
+      "left": 1160,
+      "attrs": { "color": "blue" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnOk",
+      "top": 500,
+      "left": 1240,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnNext",
+      "top": 500,
+      "left": 1320,
+      "attrs": { "color": "blue" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnUp",
+      "top": 420,
+      "left": 1240,
+      "attrs": { "color": "purple" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnDown",
+      "top": 580,
+      "left": 1240,
+      "attrs": { "color": "purple" }
     },
     {
       "type": "chip-incu-ntc-skin",
@@ -145,15 +180,7 @@
       "id": "telemetry",
       "top": 920,
       "left": 100,
-      "attrs": {
-        "chamberTemp": "34.2",
-        "skinTemp": "36.6",
-        "humidity": "58",
-        "fanRpm": "1200",
-        "heaterDuty": "42",
-        "doorOpen": "0",
-        "alarm": "0"
-      }
+      "attrs": {}
     }
   ],
   "connections": [
@@ -163,6 +190,7 @@
     ["bb1:tp.4", "ntc:VCC", "red", []],
     ["bb1:tn.4", "ntc:GND", "black", []],
     ["esp32:10", "ntc:OUT", "green", []],
+    ["ntc:OUT", "telemetry:SKIN_IN", "green", []],
 
     ["bb1:tp.6", "sts35a:VCC", "red", []],
     ["bb1:tn.6", "sts35a:GND", "black", []],
@@ -178,6 +206,8 @@
     ["bb1:tn.10", "sht4x:GND", "black", []],
     ["esp32:9", "sht4x:SCL", "purple", []],
     ["esp32:8", "sht4x:SDA", "blue", []],
+    ["sht4x:TEMP_OUT", "telemetry:CHAMBER_IN", "green", []],
+    ["sht4x:HUM_OUT", "telemetry:HUMIDITY_IN", "blue", []],
 
     ["bb1:tp.12", "shtc3:VCC", "red", []],
     ["bb1:tn.12", "shtc3:GND", "black", []],
@@ -198,24 +228,30 @@
     ["bb1:tn.18", "humidifier:GND", "black", []],
     ["esp32:9", "humidifier:SCL", "purple", []],
     ["esp32:8", "humidifier:SDA", "blue", []],
+    ["telemetry:HUMIDIFIER_DUTY_OUT", "humidifier:DUTY_OVERRIDE", "blue", []],
+    ["telemetry:HUMIDIFIER_OVERRIDE_EN", "humidifier:OVERRIDE_EN", "yellow", []],
 
     ["bb1:bp.2", "heater:VCC", "red", []],
     ["bb1:bn.2", "heater:GND", "black", []],
     ["esp32:16", "heater:PWM_IN", "orange", []],
+    ["heater:PWM_IN", "telemetry:HEATER_PWM_IN", "orange", []],
 
     ["bb1:bp.4", "fan:VCC", "red", []],
     ["bb1:bn.4", "fan:GND", "black", []],
     ["esp32:12", "fan:PWM_IN", "orange", []],
     ["esp32:38", "fan:TACH_OUT", "green", []],
+    ["fan:TACH_OUT", "telemetry:FAN_TACH_IN", "green", []],
     ["esp32:14", "fan:EN", "yellow", []],
 
     ["bb1:bp.6", "buzzer:VCC", "red", []],
     ["bb1:bn.6", "buzzer:GND", "black", []],
     ["esp32:5", "buzzer:IN", "orange", []],
+    ["buzzer:IN", "telemetry:ALARM_IN", "orange", []],
 
     ["bb1:bp.8", "door:VCC", "red", []],
     ["bb1:bn.8", "door:GND", "black", []],
     ["esp32:1", "door:OUT", "green", []],
+    ["door:OUT", "telemetry:DOOR_IN", "green", []],
     ["esp32:2", "door:SEL", "yellow", []],
 
     ["bb1:bp.10", "phototherapy:VCC", "red", []],
@@ -234,7 +270,6 @@
     ["bb1:bp.12", "gprs:VCC", "red", []],
     ["bb1:bn.12", "gprs:GND", "black", []],
     ["esp32:47", "gprs:RX", "cyan", []],
-    ["esp32:48", "gprs:TX", "cyan", []],
 
     ["esp32:7", "statusLed:DIN", "green", []],
     ["bb1:bp.14", "statusLed:VCC", "red", []],
@@ -245,7 +280,19 @@
 
     ["bb1:bp.18", "display:VCC", "red", []],
     ["bb1:bn.18", "display:GND", "black", []],
+    ["btnPrev:1.l", "display:BTN_PREV", "green", []],
+    ["btnPrev:2.l", "bb1:bn.18", "black", []],
+    ["btnOk:1.l", "display:BTN_OK", "green", []],
+    ["btnOk:2.l", "bb1:bn.18", "black", []],
+    ["btnNext:1.l", "display:BTN_NEXT", "green", []],
+    ["btnNext:2.l", "bb1:bn.18", "black", []],
+    ["btnUp:1.l", "display:BTN_UP", "green", []],
+    ["btnUp:2.l", "bb1:bn.18", "black", []],
+    ["btnDown:1.l", "display:BTN_DOWN", "green", []],
+    ["btnDown:2.l", "bb1:bn.18", "black", []],
+    ["display:TX", "telemetry:RX", "cyan", []],
     ["telemetry:TX", "display:RX", "cyan", []],
+    ["telemetry:TX", "esp32:48", "cyan", []],
     ["bb1:tp.1", "bb1:bp.1", "red", []],
     ["bb1:tn.1", "bb1:bn.1", "black", []]
   ]

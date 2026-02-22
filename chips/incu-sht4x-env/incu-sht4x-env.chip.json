@@ -1,7 +1,7 @@
 {
   "name": "Incu SHT4x Environment Sensor",
   "author": "IncuNest Project",
-  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "pins": ["VCC", "GND", "SCL", "SDA", "TEMP_OUT", "HUM_OUT"],
   "controls": [
     {
       "id": "temperature",

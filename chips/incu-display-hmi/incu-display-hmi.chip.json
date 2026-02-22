@@ -1,35 +1,10 @@
 {
   "name": "IncuNest Display HMI",
   "author": "IncuNest",
-  "pins": ["RX", "TX", "BTN_NEXT", "BTN_PREV", "BTN_OK", "VCC", "GND"],
+  "pins": ["RX", "TX", "BTN_NEXT", "BTN_PREV", "BTN_OK", "BTN_UP", "BTN_DOWN", "VCC", "GND"],
   "display": {
-    "width": 480,
-    "height": 320
+    "width": 800,
+    "height": 480
   },
-  "controls": [
-    {
-      "id": "touchX",
-      "label": "Touch X",
-      "type": "range",
-      "min": 0,
-      "max": 479,
-      "step": 1
-    },
-    {
-      "id": "touchY",
-      "label": "Touch Y",
-      "type": "range",
-      "min": 0,
-      "max": 319,
-      "step": 1
-    },
-    {
-      "id": "touchTap",
-      "label": "Touch Tap",
-      "type": "range",
-      "min": 0,
-      "max": 1,
-      "step": 1
-    }
-  ]
+  "controls": []
 }

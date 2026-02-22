@@ -3,7 +3,7 @@
 > ✅ **Versión principal.** Usa ESP32-S3 (`board-esp32-s3-devkitc-1`) con pinout v15.
 > Para la versión anterior v14 (ESP32 clásico), ver `../full-incubator-demo/`.
 
-## Componentes (19 partes)
+## Componentes (24 partes)
 
 ### Sensores (7)
 | Componente | Chip | Protocolo | Pin/Dir |
@@ -33,18 +33,27 @@
 ### Comunicaciones (1)
 | Componente | Chip | Protocolo | Pines |
 |-----------|------|-----------|-------|
-| SIM800C GPRS | `incu-sim800c-gprs` | UART2 115200 | ESP TX=47 → RX, ESP RX=48 ← TX |
+| SIM800C GPRS | `incu-sim800c-gprs` | UART2 115200 | ESP TX=47 → RX (TX virtual no cableado en mode2) |
 
 ### Display + Telemetría (2)
 | Componente | Chip | Conexión |
 |-----------|------|----------|
-| Display CrowPanel | `incu-display-hmi` | RX ← telemetry:TX (visual) |
-| Telemetry Reporter | `incu-telemetry-reporter` | TX → display (stream CTRL simulado) |
+| Display CrowPanel | `incu-display-hmi` | RX ← telemetry:TX, TX → telemetry:RX |
+| Telemetry Reporter | `incu-telemetry-reporter` | Lee señales reales, recibe comandos HMI y publica JSON/STATE por TX → display + ESP32 GPIO48 (bridge 3D) |
 
 ### Indicadores (1)
 | Componente | Tipo | Pin |
 |-----------|------|-----|
 | WS2812B LED RGB | `wokwi-neopixel` (nativo) | GPIO 7 |
+
+### Navegación UI (5)
+| Componente | Tipo | Conexión |
+|-----------|------|----------|
+| PREV | `wokwi-pushbutton` | `display:BTN_PREV` (pull-up interno) |
+| OK | `wokwi-pushbutton` | `display:BTN_OK` (pull-up interno) |
+| NEXT | `wokwi-pushbutton` | `display:BTN_NEXT` (pull-up interno) |
+| UP | `wokwi-pushbutton` | `display:BTN_UP` (pull-up interno) |
+| DOWN | `wokwi-pushbutton` | `display:BTN_DOWN` (pull-up interno) |
 
 ## Pinout v15 (board.h HW_NUM > 14)
 
@@ -64,7 +73,7 @@
 | Fan TACH | 38 | board.h | Tacómetro 2 pulsos/rev |
 | AFE4490 ADC_RDY | 45 | board.h | Interrupt |
 | SERIAL2 TX (SIM800C) | 47 | board.h | ESP32 TX → SIM800C RX |
-| SERIAL2 RX (SIM800C) | 48 | board.h | ESP32 RX ← SIM800C TX |
+| SERIAL2 RX (SIM800C) | 48 | board.h | En mode2 se usa para ingestar stream de `telemetry:TX` hacia bridge 3D |
 | Buzzer | 5 | board.h | PWM tono |
 | Touch Sensor | 1 | board.h | Sensor capacitivo puerta |
 | Touch SEL | 2 | board.h | Selección modo touch |
@@ -72,14 +81,14 @@
 
 ### Display: Nota sobre comunicación
 
-En el hardware real v15, el CrowPanel se comunica por **USB Host** (CDC ACM vía chip CH340C), gestionado por `CommTask.cpp`. Wokwi no soporta USB Host, por lo que en la simulación el display recibe datos del chip `incu-telemetry-reporter` como aproximación visual.
+En el hardware real v15, el CrowPanel se comunica por **USB Host** (CDC ACM vía chip CH340C), gestionado por `CommTask.cpp`. Wokwi no soporta USB Host, por lo que en la simulación se emula el canal HMI↔MB por UART entre `incu-display-hmi` y `incu-telemetry-reporter` (incluyendo retorno de setpoints/estado).
 
 ## Quick Start (mode2)
 
 `mode2` en este repo es el flujo v15 más fiel para HMI interactivo en Wokwi:
 - escenario `examples/full-incubator-demo-v15/`
-- chip `incu-display-hmi` con navegación táctil virtual en footer (PREV/OK/NEXT)
-- controles Wokwi `touchX`, `touchY`, `touchTap` (sin switches físicos)
+- chip `incu-display-hmi` con navegación por botones (PREV/OK/NEXT/UP/DOWN)
+- botones clicables PREV/OK/NEXT/UP/DOWN
 - firmware real v15 cargado desde `../../Incunest_v15/Firmware/MotherBoard/firmware.bin`
 
 ### Ejecución end-to-end (copy/paste)
@@ -93,23 +102,30 @@ code .
 # En VS Code: F1 → "Wokwi: Start Simulator"
 ```
 
-### Controles táctiles virtuales (`touchX`/`touchY`/`touchTap`)
+### Navegación operativa (sin coordenadas)
 
-Wokwi no expone eventos nativos de click/touch sobre el framebuffer de un custom chip, así que el toque se emula con controles.
+Usa los pulsadores `PREV`, `OK`, `NEXT`, `UP`, `DOWN` junto al display: son clicables en Wokwi y disparan directamente los pines del HMI.
 
-1. Ajusta `touchX` (0..479) y `touchY` (0..319) en los sliders del chip.
-2. Dispara el tap cambiando `touchTap` de **0→1**.
-3. Regresa `touchTap` a **0** para poder generar el siguiente tap.
+- `PREV/NEXT`: cambia de pantalla (navegación horizontal).
+- `UP/DOWN`: navegación vertical dentro de la pantalla actual.
+  - `SETTINGS`: recorre filas y hace scroll.
+  - `ALARMS`: selecciona alarma activa arriba/abajo.
+- `OK`: acción contextual.
+  - `SETTINGS`: aplica cambio en la fila seleccionada (por ejemplo, `Language` cicla EN→ES→FR→PT).
+  - `ALARMS`: alterna mute si hay alarmas activas.
+  - `LOCK`: alterna lock/unlock.
+  - `BOOT`: entra a MAIN.
 
-Para navegación, usa el footer (`touchY >= 296`) y estas zonas en X:
+### Verificación sensor → display/bridge (1 a 1)
 
-| Zona footer | `touchX` | Acción |
-|-------------|----------|--------|
-| PREV | 0..159 | Pantalla anterior (cíclico) |
-| OK | 160..319 | BOOT→MAIN, LOCK↔UNLOCK, en ALARMS con alarmas activas alterna mute |
-| NEXT | 320..479 | Pantalla siguiente (cíclico) |
+1. Cambia `ntc.temperature` y valida en `MAIN` que cambie `Skin`.
+2. Cambia `sht4x.temperature` y valida en `MAIN` que cambie `Air`.
+3. Cambia `sht4x.humidity` y valida en `MAIN` que cambie `Humidity`.
+4. Activa/desactiva puerta (`door`) y valida indicador `Door` en `MAIN`.
+5. Cuando el buzzer esté activo, valida `alarm` en stream JSON del monitor serie.
+6. En `SETTINGS`, sube `Humidity setpoint` por encima de la humedad medida y valida que el humidificador enciende (override HMI activo).
 
-> Cuando la UI está bloqueada, PREV/NEXT quedan deshabilitados hasta desbloquear con OK.
+Todos estos cambios salen por el mismo stream JSON de `telemetry:TX`, consumido por display y por bridge 3D.
 
 ### Pantallas disponibles (mode2)
 
@@ -128,6 +144,6 @@ Orden de navegación: `BOOT → MAIN → SETTINGS → ALARMS → CHARTS → PULS
 ### Limitaciones conocidas vs CrowPanel real (v15)
 
 - **USB Host no simulado:** el hardware real usa USB Host CDC ACM (CH340C, `CommTask.cpp`), no disponible en Wokwi.
-- **Canal HMI simplificado:** en `mode2` el display consume stream simulado de `incu-telemetry-reporter`; no hay retorno cableado del display hacia la motherboard.
-- **UI aproximada:** se usa framebuffer 480×320 y toque emulado con `touchX/touchY/touchTap`; no hay touch nativo ni panel RGB táctil 800×480 + GT911/LVGL completo.
+- **Canal HMI emulado:** en `mode2` el retorno HMI se resuelve con `incu-telemetry-reporter` (proxy), no con USB Host real.
+- **UI aproximada:** se usa framebuffer 800×480 con navegación por botones simulados; no hay stack RGB+GT911+LVGL completo.
 - **Datos parciales:** `CHARTS` no incluye histórico real y `PULSEOXI` queda en placeholder hasta publicar esos campos en el stream.

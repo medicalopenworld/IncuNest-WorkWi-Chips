@@ -9,6 +9,9 @@ typedef struct {
   uint32_t humidity_attr;
   uint8_t response[6];
   uint8_t response_index;
+  pin_t temp_out;
+  pin_t hum_out;
+  timer_t output_timer;
 } chip_state_t;
 
 static uint8_t crc8(const uint8_t *data, uint8_t len) {
@@ -20,6 +23,12 @@ static uint8_t crc8(const uint8_t *data, uint8_t len) {
     }
   }
   return crc;
+}
+
+static float clampf(float x, float min_v, float max_v) {
+  if (x < min_v) return min_v;
+  if (x > max_v) return max_v;
+  return x;
 }
 
 static void prepare_measurement(chip_state_t *chip) {
@@ -61,11 +70,28 @@ static bool on_i2c_write(void *user_data, uint8_t data) {
   return true;
 }
 
+static void on_output_timer(void *user_data) {
+  chip_state_t *chip = (chip_state_t *)user_data;
+  float t = attr_read_float(chip->temperature_attr);
+  float h = attr_read_float(chip->humidity_attr);
+
+  // Export helper analog signals for telemetry reporter:
+  // TEMP_OUT: -20..80 C -> 0..3.3 V
+  // HUM_OUT :   0..100% -> 0..3.3 V
+  float t_v = ((t + 20.0f) / 100.0f) * 3.3f;
+  float h_v = (h / 100.0f) * 3.3f;
+  pin_dac_write(chip->temp_out, clampf(t_v, 0.0f, 3.3f));
+  pin_dac_write(chip->hum_out, clampf(h_v, 0.0f, 3.3f));
+}
+
 void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
   chip->temperature_attr = attr_init_float("temperature", 25.0f);
   chip->humidity_attr = attr_init_float("humidity", 50.0f);
   chip->response_index = 0;
+  chip->temp_out = pin_init("TEMP_OUT", ANALOG);
+  chip->hum_out = pin_init("HUM_OUT", ANALOG);
+  chip->output_timer = 0;
 
   const i2c_config_t i2c_config = {
       .address = 0x44,
@@ -77,4 +103,11 @@ void chip_init(void) {
       .user_data = chip,
   };
   i2c_init(&i2c_config);
+
+  const timer_config_t timer_cfg = {
+      .callback = on_output_timer,
+      .user_data = chip,
+  };
+  chip->output_timer = timer_init(&timer_cfg);
+  timer_start(chip->output_timer, 100000, true);
 }

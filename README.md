@@ -20,6 +20,10 @@ Mono-repo para simular IncuNest en Wokwi con custom chips, ejemplos y visor 3D.
 - `tools/`: scripts de build, validación y bridge
 - `Incunest_v15/`: firmware y BOM del hardware upstream
 
+## Ejemplos recomendados
+
+- [v15 base (mode2)](examples/full-incubator-demo-v15/README.md)
+
 ## Validación rápida
 
 ```bash

@@ -1,14 +1,6 @@
 {
   "name": "IncuNest Telemetry Reporter",
   "author": "IncuNest",
-  "pins": ["TX", "VCC", "GND", "DOOR_IN"],
-  "controls": [
-    { "id": "chamberTemp", "label": "Chamber Temp (°C)", "type": "range", "min": 20, "max": 42, "step": 0.1 },
-    { "id": "skinTemp",    "label": "Skin Temp (°C)",    "type": "range", "min": 28, "max": 40, "step": 0.1 },
-    { "id": "humidity",    "label": "Humidity (%)",       "type": "range", "min": 10, "max": 100, "step": 1 },
-    { "id": "fanRpm",      "label": "Fan RPM",            "type": "range", "min": 0, "max": 4000, "step": 50 },
-    { "id": "heaterDuty",  "label": "Heater Duty (%)",    "type": "range", "min": 0, "max": 100, "step": 1 },
-    { "id": "doorOpen",    "label": "Door Open",          "type": "range", "min": 0, "max": 1, "step": 1 },
-    { "id": "alarm",       "label": "Alarm Code",         "type": "range", "min": 0, "max": 5, "step": 1 }
-  ]
+  "pins": ["RX", "TX", "VCC", "GND", "CHAMBER_IN", "SKIN_IN", "HUMIDITY_IN", "FAN_TACH_IN", "HEATER_PWM_IN", "DOOR_IN", "ALARM_IN", "HUMIDIFIER_DUTY_OUT", "HUMIDIFIER_OVERRIDE_EN"],
+  "controls": []
 }

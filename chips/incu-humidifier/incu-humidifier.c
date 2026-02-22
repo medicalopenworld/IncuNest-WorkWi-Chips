@@ -27,6 +27,8 @@ typedef struct {
   uint8_t read_index;
   uint8_t write_index;
   uint8_t write_buf[4];
+  pin_t duty_override;
+  pin_t override_en;
 
   buffer_t fb;
   uint32_t pixels[FB_WIDTH * FB_HEIGHT];
@@ -45,9 +47,27 @@ static void draw_rect(chip_state_t *chip, int x, int y, int w, int h, uint32_t c
   }
 }
 
+static float clampf(float x, float min_v, float max_v) {
+  if (x < min_v) return min_v;
+  if (x > max_v) return max_v;
+  return x;
+}
+
+static uint8_t effective_duty_cycle(chip_state_t *chip) {
+  if (pin_read(chip->override_en) == HIGH) {
+    float v = clampf(pin_adc_read(chip->duty_override), 0.0f, 3.3f);
+    int duty = (int)((v / 3.3f) * 95.0f + 0.5f);
+    if (duty < 0) duty = 0;
+    if (duty > 95) duty = 95;
+    return (uint8_t)duty;
+  }
+  return chip->duty_cycle;
+}
+
 static void on_timer(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
   chip->anim_frame++;
+  uint8_t duty_cycle = effective_duty_cycle(chip);
 
   uint8_t water_level = (uint8_t)attr_read(chip->water_level_attr);
   if (water_level > 100) water_level = 100;
@@ -108,8 +128,8 @@ static void on_timer(void *user_data) {
   // VAPOR: particles rising from bottle BOTTOM (y > 93)
   // (bottle is upright now, vapor exits the bottom opening)
   // =============================================
-  if (chip->duty_cycle > 0 && water_level > 0) {
-    int num_particles = (chip->duty_cycle / 15) + 1;
+  if (duty_cycle > 0 && water_level > 0) {
+    int num_particles = (duty_cycle / 15) + 1;
     if (num_particles > 4) num_particles = 4;
     for (int i = 0; i < num_particles; i++) {
       int px = 18 + (i * 9) + ((chip->anim_frame + i * 5) % 7) - 2;
@@ -123,7 +143,7 @@ static void on_timer(void *user_data) {
   // STATUS DOT: top-right corner (r=3)
   // Green = humidifier ON (duty_cycle > 0), Red = OFF
   // =============================================
-  uint32_t dot = (chip->duty_cycle > 0) ? COLOR_ON : COLOR_OFF;
+  uint32_t dot = (duty_cycle > 0) ? COLOR_ON : COLOR_OFF;
   for (int dy = -3; dy <= 3; dy++)
     for (int dx = -3; dx <= 3; dx++)
       if (dx*dx + dy*dy <= 9) {
@@ -149,9 +169,10 @@ static bool on_i2c_connect(void *user_data, uint32_t address, bool read) {
 static uint8_t on_i2c_read(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
   uint8_t water_level = (uint8_t)attr_read(chip->water_level_attr);
+  uint8_t duty_cycle = effective_duty_cycle(chip);
   switch (chip->read_index++) {
     case 0:
-      return chip->duty_cycle;
+      return duty_cycle;
     case 1:
       return water_level;
     case 2:
@@ -183,6 +204,8 @@ void chip_init(void) {
   chip->read_index = 0;
   chip->write_index = 0;
   chip->anim_frame = 0;
+  chip->duty_override = pin_init("DUTY_OVERRIDE", ANALOG);
+  chip->override_en = pin_init("OVERRIDE_EN", INPUT_PULLDOWN);
 
   uint32_t fb_w = 0, fb_h = 0;
   chip->fb = framebuffer_init(&fb_w, &fb_h);

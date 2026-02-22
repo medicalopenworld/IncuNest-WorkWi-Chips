@@ -131,11 +131,23 @@ static const uint8_t font5x7[96][5] = {
 #define MAX_ALARMS       8
 #define MAX_ALARM_DESC  48
 #define UART_BUF_SIZE  512
+// Logical UI grid. The framebuffer can be larger (e.g. 800x480) and is scaled.
 #define DISPLAY_W      480
 #define DISPLAY_H      320
 #define FOOTER_Y       296
 #define FOOTER_H        24
 #define BUTTON_DEBOUNCE_NS 120000000ULL
+#define SETTINGS_TOTAL_ROWS 9
+#define SETTINGS_VISIBLE_ROWS 7
+#define SETTINGS_ROW_CONTROL_MODE 0
+#define SETTINGS_ROW_AIR_SETPOINT 1
+#define SETTINGS_ROW_SKIN_SETPOINT 2
+#define SETTINGS_ROW_HUM_SETPOINT 3
+#define SETTINGS_ROW_SKIN_SENSOR 4
+#define SETTINGS_ROW_LANGUAGE 5
+#define SETTINGS_ROW_COMM_TIMEOUT 6
+#define SETTINGS_ROW_COMM_LINK 7
+#define SETTINGS_ROW_AUTO_REQUEST 8
 
 // ─── Data Types ──────────────────────────────────────────────────
 typedef enum {
@@ -190,7 +202,7 @@ typedef struct {
   timer_t        watchdog_timer;
   uint32_t       width, height;
   uint32_t      *pixels;
-  pin_t          btn_next, btn_prev, btn_ok;
+  pin_t          btn_next, btn_prev, btn_ok, btn_up, btn_down;
   char           rx_buf[UART_BUF_SIZE];
   int            rx_len;
   bool           rx_overflow;
@@ -204,10 +216,17 @@ typedef struct {
   uint32_t       attr_air_setpoint, attr_skin_setpoint, attr_hum_setpoint;
   uint32_t       attr_comm_timeout, attr_auto_request;
   uint32_t       attr_touch_x, attr_touch_y, attr_touch_tap;
+  int            ui_language;
+  int            ui_skin_enabled;
+  int            ui_comm_timeout_ms;
+  int            ui_auto_request;
   uint64_t       boot_ns;
   uint64_t       last_btn_ns;
   uint32_t       last_touch_tap;
   int            touch_x, touch_y;
+  int            settings_cursor;
+  int            settings_scroll;
+  int            alarms_cursor;
   screen_id_t    active_screen;
   bool           ui_locked;
 } chip_state_t;
@@ -278,6 +297,37 @@ static const char *language_name(int lang) {
   }
 }
 
+static void send_hmi_control(chip_state_t *s) {
+  char act[12], skin_mode[12], mode[12], air[16], skin[16], hum[16];
+  char photo[12], mute[12], lang[12], photo_min[12];
+  int_to_str(s->state.actuators_enabled, act);
+  int_to_str(s->ui_skin_enabled, skin_mode);
+  int_to_str(s->state.control_mode, mode);
+  float_to_str(s->state.air_setpoint, air, 1);
+  float_to_str(s->state.skin_setpoint, skin, 1);
+  float_to_str(s->state.hum_setpoint, hum, 0);
+  int_to_str(s->state.phototherapy, photo);
+  int_to_str(s->state.mute, mute);
+  int_to_str(s->ui_language, lang);
+  int_to_str(s->state.photo_time_min, photo_min);
+
+  char msg[220];
+  msg[0] = '\0';
+  strcat(msg, "HMI,");
+  strcat(msg, act); strcat(msg, ",");
+  strcat(msg, skin_mode); strcat(msg, ",");
+  strcat(msg, mode); strcat(msg, ",");
+  strcat(msg, air); strcat(msg, ",");
+  strcat(msg, skin); strcat(msg, ",");
+  strcat(msg, hum); strcat(msg, ",");
+  strcat(msg, photo); strcat(msg, ",");
+  strcat(msg, mute); strcat(msg, ",");
+  strcat(msg, lang); strcat(msg, ",");
+  strcat(msg, photo_min); strcat(msg, "\n");
+
+  uart_write(s->uart, (uint8_t *)msg, strlen(msg));
+}
+
 static void nav_prev(chip_state_t *s) {
   if (s->ui_locked && s->active_screen != SCREEN_LOCK) return;
   s->active_screen = (screen_id_t)((s->active_screen + SCREEN_COUNT - 1) % SCREEN_COUNT);
@@ -291,6 +341,7 @@ static void nav_next(chip_state_t *s) {
 }
 
 static void nav_ok(chip_state_t *s) {
+  bool emit_hmi = false;
   if (s->active_screen == SCREEN_BOOT) {
     s->active_screen = SCREEN_MAIN;
   } else if (s->active_screen == SCREEN_LOCK) {
@@ -298,12 +349,90 @@ static void nav_ok(chip_state_t *s) {
     if (!s->ui_locked) s->active_screen = SCREEN_MAIN;
   } else if (s->ui_locked) {
     s->active_screen = SCREEN_LOCK;
+  } else if (s->active_screen == SCREEN_SETTINGS) {
+    switch (s->settings_cursor) {
+      case SETTINGS_ROW_CONTROL_MODE:
+        s->state.control_mode = s->state.control_mode ? 0 : 1;
+        emit_hmi = true;
+        break;
+      case SETTINGS_ROW_AIR_SETPOINT:
+        s->state.air_setpoint += 0.5f;
+        if (s->state.air_setpoint > 40.0f) s->state.air_setpoint = 30.0f;
+        emit_hmi = true;
+        break;
+      case SETTINGS_ROW_SKIN_SETPOINT:
+        s->state.skin_setpoint += 0.5f;
+        if (s->state.skin_setpoint > 39.0f) s->state.skin_setpoint = 34.0f;
+        emit_hmi = true;
+        break;
+      case SETTINGS_ROW_HUM_SETPOINT:
+        s->state.hum_setpoint += 5.0f;
+        if (s->state.hum_setpoint > 95.0f) s->state.hum_setpoint = 40.0f;
+        emit_hmi = true;
+        break;
+      case SETTINGS_ROW_SKIN_SENSOR:
+        s->ui_skin_enabled = s->ui_skin_enabled ? 0 : 1;
+        emit_hmi = true;
+        break;
+      case SETTINGS_ROW_LANGUAGE:
+        s->ui_language = (s->ui_language + 1) % 4;
+        emit_hmi = true;
+        break;
+      case SETTINGS_ROW_COMM_TIMEOUT:
+        if (s->ui_comm_timeout_ms < 2000) s->ui_comm_timeout_ms = 2000;
+        else if (s->ui_comm_timeout_ms < 3000) s->ui_comm_timeout_ms = 3000;
+        else if (s->ui_comm_timeout_ms < 5000) s->ui_comm_timeout_ms = 5000;
+        else s->ui_comm_timeout_ms = 1000;
+        break;
+      case SETTINGS_ROW_AUTO_REQUEST:
+        s->ui_auto_request = s->ui_auto_request ? 0 : 1;
+        break;
+      case SETTINGS_ROW_COMM_LINK:
+      default:
+        break;
+    }
   } else if (s->active_screen == SCREEN_ALARMS && s->alarm_count > 0) {
     s->state.mute = s->state.mute ? 0 : 1;
-  } else {
-    s->active_screen = SCREEN_LOCK;
-    s->ui_locked = true;
+    emit_hmi = true;
   }
+  if (emit_hmi) send_hmi_control(s);
+  s->render.needs_redraw = true;
+}
+
+static void nav_up(chip_state_t *s) {
+  if (s->ui_locked && s->active_screen != SCREEN_LOCK) return;
+
+  if (s->active_screen == SCREEN_SETTINGS) {
+    if (s->settings_cursor > 0) s->settings_cursor--;
+    if (s->settings_cursor < s->settings_scroll) s->settings_scroll = s->settings_cursor;
+  } else if (s->active_screen == SCREEN_ALARMS) {
+    if (s->alarms_cursor > 0) s->alarms_cursor--;
+  } else {
+    return;
+  }
+
+  s->render.needs_redraw = true;
+}
+
+static void nav_down(chip_state_t *s) {
+  if (s->ui_locked && s->active_screen != SCREEN_LOCK) return;
+
+  if (s->active_screen == SCREEN_SETTINGS) {
+    int max_scroll = SETTINGS_TOTAL_ROWS - SETTINGS_VISIBLE_ROWS;
+    if (max_scroll < 0) max_scroll = 0;
+    if (s->settings_cursor < SETTINGS_TOTAL_ROWS - 1) s->settings_cursor++;
+    if (s->settings_cursor >= s->settings_scroll + SETTINGS_VISIBLE_ROWS) {
+      s->settings_scroll = s->settings_cursor - SETTINGS_VISIBLE_ROWS + 1;
+      if (s->settings_scroll > max_scroll) s->settings_scroll = max_scroll;
+    }
+  } else if (s->active_screen == SCREEN_ALARMS) {
+    int max_cursor = s->alarm_count - 1;
+    if (max_cursor < 0) return;
+    if (s->alarms_cursor < max_cursor) s->alarms_cursor++;
+  } else {
+    return;
+  }
+
   s->render.needs_redraw = true;
 }
 
@@ -323,10 +452,16 @@ static void poll_touch_controls(chip_state_t *s) {
   int y = (int)attr_read(s->attr_touch_y);
   uint32_t tap = attr_read(s->attr_touch_tap) ? 1 : 0;
 
+  int max_x = s->width > 0 ? (int)s->width - 1 : DISPLAY_W - 1;
+  int max_y = s->height > 0 ? (int)s->height - 1 : DISPLAY_H - 1;
   if (x < 0) x = 0;
-  if (x >= DISPLAY_W) x = DISPLAY_W - 1;
+  if (x > max_x) x = max_x;
   if (y < 0) y = 0;
-  if (y >= DISPLAY_H) y = DISPLAY_H - 1;
+  if (y > max_y) y = max_y;
+
+  // Map from framebuffer coordinates to logical UI coordinates.
+  x = (int)(((long long)x * (DISPLAY_W - 1)) / (max_x > 0 ? max_x : 1));
+  y = (int)(((long long)y * (DISPLAY_H - 1)) / (max_y > 0 ? max_y : 1));
   s->touch_x = x;
   s->touch_y = y;
 
@@ -338,8 +473,20 @@ static void poll_touch_controls(chip_state_t *s) {
 
 // ─── Drawing Primitives ─────────────────────────────────────────
 static void draw_pixel(chip_state_t *s, int x, int y, uint32_t c) {
-  if (x >= 0 && (uint32_t)x < s->width && y >= 0 && (uint32_t)y < s->height)
-    s->pixels[y * s->width + x] = c;
+  if (x < 0 || x >= DISPLAY_W || y < 0 || y >= DISPLAY_H) return;
+
+  int x0 = (int)(((long long)x * s->width) / DISPLAY_W);
+  int x1 = (int)((((long long)(x + 1) * s->width) / DISPLAY_W) - 1);
+  int y0 = (int)(((long long)y * s->height) / DISPLAY_H);
+  int y1 = (int)((((long long)(y + 1) * s->height) / DISPLAY_H) - 1);
+  if (x1 < x0) x1 = x0;
+  if (y1 < y0) y1 = y0;
+
+  for (int py = y0; py <= y1; py++) {
+    for (int px = x0; px <= x1; px++) {
+      s->pixels[py * s->width + px] = c;
+    }
+  }
 }
 
 static void fill_rect(chip_state_t *s, int x, int y, int w, int h, uint32_t c) {
@@ -479,6 +626,8 @@ static void parse_ctrl_alarm(chip_state_t *s) {
   s->alarm_count = 0;
   for (int i = 0; i < MAX_ALARMS; i++)
     if (s->alarms[i].id != 0) s->alarm_count++;
+  if (s->alarm_count <= 0) s->alarms_cursor = 0;
+  else if (s->alarms_cursor >= s->alarm_count) s->alarms_cursor = s->alarm_count - 1;
 }
 
 static void parse_message(chip_state_t *s) {
@@ -508,7 +657,7 @@ static void render_boot_screen(chip_state_t *s) {
                        s->conn.msg_count > 0 ? "Data stream detected" : "Waiting for motherboard",
                        COLOR_TEXT_DIM, 1);
   draw_string_centered(s, 240, 238, "NEXT/PREV: browse screens", COLOR_TEXT_DIM, 1);
-  draw_string_centered(s, 240, 250, "OK: continue or lock", COLOR_TEXT_DIM, 1);
+  draw_string_centered(s, 240, 250, "UP/DOWN: vertical nav  OK: action", COLOR_TEXT_DIM, 1);
 }
 
 static void render_header(chip_state_t *s) {
@@ -653,7 +802,7 @@ static void render_main_screen(chip_state_t *s) {
   render_temp_panel(s, 2, 32, "AIR TEMPERATURE",
                     s->telemetry.air_temp, s->state.air_setpoint,
                     COLOR_TEMP_AIR, tv);
-  bool skin_en = (attr_read(s->attr_skin_enabled) != 0);
+  bool skin_en = (s->ui_skin_enabled != 0);
   render_temp_panel(s, 244, 32, "SKIN TEMPERATURE",
                     s->telemetry.skin_temp, s->state.skin_setpoint,
                     COLOR_TEMP_SKIN, tv && skin_en);
@@ -672,21 +821,67 @@ static void render_settings_screen(chip_state_t *s) {
   draw_string(s, 12, 40, "SETTINGS", COLOR_TEXT_PRIMARY, 2);
   draw_string(s, 190, 44, "Live configuration snapshot", COLOR_TEXT_DIM, 1);
 
-  int y = 70;
-  char v[40], n[16];
-  draw_settings_row(s, y, "Control mode", mode_name(s->state.control_mode), COLOR_TEXT_PRIMARY); y += 20;
-  float_to_str(s->state.air_setpoint, n, 1); v[0] = '\0'; strcat(v, n); strcat(v, " C");
-  draw_settings_row(s, y, "Air setpoint", v, COLOR_SETPOINT); y += 20;
-  float_to_str(s->state.skin_setpoint, n, 1); v[0] = '\0'; strcat(v, n); strcat(v, " C");
-  draw_settings_row(s, y, "Skin setpoint", v, COLOR_SETPOINT); y += 20;
-  float_to_str(s->state.hum_setpoint, n, 0); v[0] = '\0'; strcat(v, n); strcat(v, " %");
-  draw_settings_row(s, y, "Humidity setpoint", v, COLOR_SETPOINT); y += 20;
-  draw_settings_row(s, y, "Skin sensor", attr_read(s->attr_skin_enabled) ? "ENABLED" : "DISABLED", COLOR_TEXT_PRIMARY); y += 20;
-  draw_settings_row(s, y, "Language", language_name((int)attr_read(s->attr_language)), COLOR_TEXT_PRIMARY); y += 20;
-  int_to_str((int)attr_read(s->attr_comm_timeout), n); v[0] = '\0'; strcat(v, n); strcat(v, " ms");
-  draw_settings_row(s, y, "Comm timeout", v, COLOR_TEXT_PRIMARY); y += 20;
-  draw_settings_row(s, y, "Comm link", s->conn.connected ? "ONLINE" : "LOST", s->conn.connected ? COLOR_CONN_OK : COLOR_CONN_LOST); y += 20;
-  draw_settings_row(s, y, "Auto state request", attr_read(s->attr_auto_request) ? "ON" : "OFF", COLOR_TEXT_PRIMARY);
+  const char *labels[SETTINGS_TOTAL_ROWS] = {
+    "Control mode",
+    "Air setpoint",
+    "Skin setpoint",
+    "Humidity setpoint",
+    "Skin sensor",
+    "Language",
+    "Comm timeout",
+    "Comm link",
+    "Auto state request"
+  };
+  uint32_t value_colors[SETTINGS_TOTAL_ROWS] = {
+    COLOR_TEXT_PRIMARY,
+    COLOR_SETPOINT,
+    COLOR_SETPOINT,
+    COLOR_SETPOINT,
+    COLOR_TEXT_PRIMARY,
+    COLOR_TEXT_PRIMARY,
+    COLOR_TEXT_PRIMARY,
+    s->conn.connected ? COLOR_CONN_OK : COLOR_CONN_LOST,
+    COLOR_TEXT_PRIMARY
+  };
+  char values[SETTINGS_TOTAL_ROWS][40];
+  char n[16];
+
+  strcpy(values[0], mode_name(s->state.control_mode));
+  float_to_str(s->state.air_setpoint, n, 1); values[1][0] = '\0'; strcat(values[1], n); strcat(values[1], " C");
+  float_to_str(s->state.skin_setpoint, n, 1); values[2][0] = '\0'; strcat(values[2], n); strcat(values[2], " C");
+  float_to_str(s->state.hum_setpoint, n, 0); values[3][0] = '\0'; strcat(values[3], n); strcat(values[3], " %");
+  strcpy(values[4], s->ui_skin_enabled ? "ENABLED" : "DISABLED");
+  strcpy(values[5], language_name(s->ui_language));
+  int_to_str(s->ui_comm_timeout_ms, n); values[6][0] = '\0'; strcat(values[6], n); strcat(values[6], " ms");
+  strcpy(values[7], s->conn.connected ? "ONLINE" : "LOST");
+  strcpy(values[8], s->ui_auto_request ? "ON" : "OFF");
+
+  if (s->settings_cursor < 0) s->settings_cursor = 0;
+  if (s->settings_cursor >= SETTINGS_TOTAL_ROWS) s->settings_cursor = SETTINGS_TOTAL_ROWS - 1;
+  int max_scroll = SETTINGS_TOTAL_ROWS - SETTINGS_VISIBLE_ROWS;
+  if (max_scroll < 0) max_scroll = 0;
+  if (s->settings_scroll < 0) s->settings_scroll = 0;
+  if (s->settings_scroll > max_scroll) s->settings_scroll = max_scroll;
+  if (s->settings_cursor < s->settings_scroll) s->settings_scroll = s->settings_cursor;
+  if (s->settings_cursor >= s->settings_scroll + SETTINGS_VISIBLE_ROWS) {
+    s->settings_scroll = s->settings_cursor - SETTINGS_VISIBLE_ROWS + 1;
+    if (s->settings_scroll > max_scroll) s->settings_scroll = max_scroll;
+  }
+
+  for (int row = 0; row < SETTINGS_VISIBLE_ROWS; row++) {
+    int idx = s->settings_scroll + row;
+    if (idx >= SETTINGS_TOTAL_ROWS) break;
+    int y = 70 + row * 20;
+    if (idx == s->settings_cursor) fill_rect(s, 8, y - 2, 460, 16, COLOR_BG_HEADER);
+    draw_settings_row(s, y, labels[idx], values[idx], value_colors[idx]);
+  }
+
+  char nav_line[40];
+  nav_line[0] = '\0';
+  strcat(nav_line, "UP/DOWN row ");
+  int_to_str(s->settings_cursor + 1, n); strcat(nav_line, n); strcat(nav_line, "/");
+  int_to_str(SETTINGS_TOTAL_ROWS, n); strcat(nav_line, n);
+  draw_string(s, 12, 248, nav_line, COLOR_TEXT_DIM, 1);
 
   if (!s->state.valid)
     draw_string(s, 12, 268, "STATE frame pending: showing local defaults", COLOR_ALARM_WARN, 1);
@@ -702,16 +897,35 @@ static void render_alarms_screen(chip_state_t *s) {
   strcat(hdr, s->state.mute ? "ON" : "OFF");
   draw_string(s, 220, 44, hdr, COLOR_TEXT_DIM, 1);
 
+  int active_slots[MAX_ALARMS];
+  int active_count = 0;
+  for (int i = 0; i < MAX_ALARMS; i++) {
+    if (s->alarms[i].id == 0) continue;
+    active_slots[active_count++] = i;
+  }
+  s->alarm_count = active_count;
+
   if (s->alarm_count == 0) {
+    s->alarms_cursor = 0;
     draw_string_centered(s, 240, 124, "No active alarms", COLOR_CONN_OK, 2);
     draw_string_centered(s, 240, 146, "CTRL,ALM data will appear here", COLOR_TEXT_DIM, 1);
     return;
   }
 
+  if (s->alarms_cursor < 0) s->alarms_cursor = 0;
+  if (s->alarms_cursor >= s->alarm_count) s->alarms_cursor = s->alarm_count - 1;
+
+  int start = 0;
+  if (s->alarms_cursor > 6) start = s->alarms_cursor - 6;
+  int max_start = s->alarm_count - 9;
+  if (max_start < 0) max_start = 0;
+  if (start > max_start) start = max_start;
+
   int row = 0;
-  for (int i = 0; i < MAX_ALARMS && row < 9; i++) {
-    if (s->alarms[i].id == 0) continue;
+  for (int pos = start; pos < s->alarm_count && row < 9; pos++) {
+    int i = active_slots[pos];
     int y = 70 + row * 24;
+    if (pos == s->alarms_cursor) fill_rect(s, 6, y - 2, 468, 14, COLOR_BG_HEADER);
     uint32_t ac = s->alarms[i].type == 2 ? COLOR_ALARM_CRIT :
                   s->alarms[i].type == 1 ? COLOR_ALARM_WARN : COLOR_FAN_ON;
     char left[40]; left[0] = '\0';
@@ -725,6 +939,13 @@ static void render_alarms_screen(chip_state_t *s) {
     draw_string(s, 150, y, s->alarms[i].desc[0] ? s->alarms[i].desc : "(no description)", COLOR_TEXT_SECONDARY, 1);
     row++;
   }
+
+  char nav_line[44], n2[12];
+  nav_line[0] = '\0';
+  strcat(nav_line, "UP/DOWN alarm ");
+  int_to_str(s->alarms_cursor + 1, n2); strcat(nav_line, n2); strcat(nav_line, "/");
+  int_to_str(s->alarm_count, n2); strcat(nav_line, n2);
+  draw_string(s, 10, 284, nav_line, COLOR_TEXT_DIM, 1);
 }
 
 static void render_charts_screen(chip_state_t *s) {
@@ -826,7 +1047,7 @@ static void render_footer(chip_state_t *s) {
   line[0] = '\0';
   strcat(line, "[");
   strcat(line, screen_name(s->active_screen));
-  strcat(line, "] PREV/NEXT=SCREEN  OK=ACTION");
+  strcat(line, "] PREV/NEXT=SCREEN  UP/DOWN=VERT  OK=ACTION");
   if (s->ui_locked) strcat(line, " (LOCKED)");
   draw_string(s, 8, 309, line, COLOR_TEXT_DIM, 1);
 }
@@ -839,7 +1060,7 @@ static void render_comm_lost_overlay(chip_state_t *s) {
 }
 
 static void render_display(chip_state_t *s) {
-  fill_rect(s, 0, 0, s->width, s->height, COLOR_BG_DARK);
+  fill_rect(s, 0, 0, DISPLAY_W, DISPLAY_H, COLOR_BG_DARK);
   if (s->active_screen == SCREEN_BOOT) {
     render_boot_screen(s);
     render_footer(s);
@@ -875,6 +1096,10 @@ static void on_button_change(void *user_data, pin_t pin, uint32_t value) {
     nav_prev(s);
   else if (pin == s->btn_ok)
     nav_ok(s);
+  else if (pin == s->btn_up)
+    nav_up(s);
+  else if (pin == s->btn_down)
+    nav_down(s);
 }
 
 static void on_uart_rx(void *user_data, uint8_t byte) {
@@ -911,7 +1136,7 @@ static void on_refresh_timer(void *user_data) {
 static void on_watchdog(void *user_data) {
   chip_state_t *s = (chip_state_t *)user_data;
   uint64_t now = get_sim_nanos();
-  uint32_t timeout_ms = attr_read(s->attr_comm_timeout);
+  uint32_t timeout_ms = (uint32_t)s->ui_comm_timeout_ms;
   uint64_t timeout_ns = (uint64_t)timeout_ms * 1000000ULL;
   if (s->conn.connected && (now - s->conn.last_msg_ns > timeout_ns)) {
     s->conn.connected = false;
@@ -950,8 +1175,8 @@ void chip_init(void) {
   s->attr_hum_setpoint  = attr_init_float("humSetpoint", 60.0f);
   s->attr_comm_timeout  = attr_init("commTimeoutMs", 3000);
   s->attr_auto_request  = attr_init("autoRequestState", 1);
-  s->attr_touch_x       = attr_init("touchX", 240);
-  s->attr_touch_y       = attr_init("touchY", 308);
+  s->attr_touch_x       = attr_init("touchX", 400);
+  s->attr_touch_y       = attr_init("touchY", 468);
   s->attr_touch_tap     = attr_init("touchTap", 0);
 
   // Load initial setpoints from attributes
@@ -959,6 +1184,15 @@ void chip_init(void) {
   s->state.skin_setpoint = attr_read_float(s->attr_skin_setpoint);
   s->state.hum_setpoint  = attr_read_float(s->attr_hum_setpoint);
   s->state.control_mode  = (int)attr_read(s->attr_control_mode);
+  s->state.actuators_enabled = 1;
+  s->state.phototherapy = 0;
+  s->state.mute = 0;
+  s->state.photo_time_min = 0;
+  s->state.skin_enabled = (int)attr_read(s->attr_skin_enabled);
+  s->ui_language         = (int)attr_read(s->attr_language);
+  s->ui_skin_enabled     = (int)attr_read(s->attr_skin_enabled);
+  s->ui_comm_timeout_ms  = (int)attr_read(s->attr_comm_timeout);
+  s->ui_auto_request     = (int)attr_read(s->attr_auto_request);
   s->touch_x             = (int)attr_read(s->attr_touch_x);
   s->touch_y             = (int)attr_read(s->attr_touch_y);
   s->last_touch_tap      = attr_read(s->attr_touch_tap) ? 1 : 0;
@@ -975,6 +1209,8 @@ void chip_init(void) {
   s->btn_next = pin_init("BTN_NEXT", INPUT_PULLUP);
   s->btn_prev = pin_init("BTN_PREV", INPUT_PULLUP);
   s->btn_ok   = pin_init("BTN_OK", INPUT_PULLUP);
+  s->btn_up   = pin_init("BTN_UP", INPUT_PULLUP);
+  s->btn_down = pin_init("BTN_DOWN", INPUT_PULLUP);
   const pin_watch_config_t btn_watch = {
     .edge = BOTH,
     .pin_change = on_button_change,
@@ -983,6 +1219,8 @@ void chip_init(void) {
   pin_watch(s->btn_next, &btn_watch);
   pin_watch(s->btn_prev, &btn_watch);
   pin_watch(s->btn_ok, &btn_watch);
+  pin_watch(s->btn_up, &btn_watch);
+  pin_watch(s->btn_down, &btn_watch);
 
   // Boot timestamp & initial render
   s->boot_ns = get_sim_nanos();
@@ -1009,7 +1247,7 @@ void chip_init(void) {
   timer_start(s->watchdog_timer, 500000, true);
 
   // Auto-request state after 500ms
-  if (attr_read(s->attr_auto_request) == 1) {
+  if (s->ui_auto_request == 1) {
     const timer_config_t req_cfg = {
       .user_data = s,
       .callback = send_state_request,

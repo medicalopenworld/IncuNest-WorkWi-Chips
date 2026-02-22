@@ -1,42 +1,46 @@
 # incu-telemetry-reporter
 
-Custom Wokwi chip that reads incubator sensor values from chip controls (sliders)
-and sends them as JSON telemetry over UART TX.
+Custom Wokwi chip that reads live sensor/actuator signals from pins and sends
+them as JSON telemetry over UART TX.
 
 ## Purpose
 
-Bridges the gap between Wokwi simulation and the 3D viewer. The chip reads
-attribute values configured via Wokwi's UI sliders and periodically transmits
-them as a JSON object to the ESP32 via UART, which the firmware echoes to the
-RFC2217 port for the `wokwi-bridge.mjs` to forward to the 3D viewer.
+Bridges the gap between Wokwi simulation and both display + 3D viewer. The chip:
+- samples connected sensor/actuator signals and transmits JSON telemetry,
+- receives HMI return commands (`HMI,...`) from the display,
+- emits `CTRL,STATE,...` feedback to emulate motherboard response,
+- drives a humidifier override output from humidity setpoint feedback.
 
 ## Pins
 
-| Pin     | Direction | Description                        |
-|---------|-----------|------------------------------------|
-| TX      | Output    | UART TX → ESP32 RX2 (GPIO16/48)   |
-| VCC     | Input     | Power                              |
-| GND     | Input     | Ground                             |
-| DOOR_IN | Input     | Digital door-open sensor (optional)|
-
-## Controls (Wokwi sliders)
-
-| Control       | Range     | Step | Description          |
-|---------------|-----------|------|----------------------|
-| chamberTemp   | 20–42 °C  | 0.1  | Chamber air temp     |
-| skinTemp      | 28–40 °C  | 0.1  | Baby skin temp       |
-| humidity      | 10–100 %  | 1    | Relative humidity    |
-| fanRpm        | 0–4000    | 50   | Fan speed            |
-| heaterDuty    | 0–100 %   | 1    | Heater duty cycle    |
-| doorOpen      | 0–1       | 1    | Door state           |
-| alarm         | 0–5       | 1    | Alarm code           |
+| Pin           | Direction | Description |
+|---------------|-----------|-------------|
+| RX            | Input     | UART RX ← `display:TX` (HMI return channel) |
+| TX            | Output    | UART TX → `display:RX` y `esp32:48` (bridge 3D) |
+| VCC           | Input     | Power |
+| GND           | Input     | Ground |
+| CHAMBER_IN    | Input     | Analog chamber temp (from `sht4x:TEMP_OUT`) |
+| SKIN_IN       | Input     | Analog skin temp (from `ntc:OUT`) |
+| HUMIDITY_IN   | Input     | Analog humidity (from `sht4x:HUM_OUT`) |
+| FAN_TACH_IN   | Input     | Fan tach pulses (from `fan:TACH_OUT`) |
+| HEATER_PWM_IN | Input     | Heater PWM line |
+| DOOR_IN       | Input     | Door analog signal (from `door:OUT`) |
+| ALARM_IN      | Input     | Alarm/buzzer drive line |
+| HUMIDIFIER_DUTY_OUT | Output | Analog duty override (0..3.3V = 0..95%) |
+| HUMIDIFIER_OVERRIDE_EN | Output | Enable override hacia `incu-humidifier` |
 
 ## JSON Output Format
 
 Transmitted every 500 ms at 115200 baud:
 
 ```json
-{"chamberTemp":36.5,"skinTemp":36.8,"humidity":65,"fanRpm":2000,"heaterDuty":45,"doorOpen":0,"alarm":0}
+{"temp":34.2,"skin":36.6,"hum":58.0,"fan":1200,"heater":42,"door":0,"alarm":0}
+```
+
+Also emits MB-style state frames when HMI link is active:
+
+```text
+CTRL,STATE,<act>,<mode>,<airSet>,<skinSet>,<humSet>,...
 ```
 
 ## Build

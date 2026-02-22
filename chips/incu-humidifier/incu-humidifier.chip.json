@@ -1,7 +1,7 @@
 {
   "name": "Incu Humidifier Slave",
   "author": "IncuNest Project",
-  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "pins": ["VCC", "GND", "SCL", "SDA", "DUTY_OVERRIDE", "OVERRIDE_EN"],
   "display": {
     "width": 64,
     "height": 96

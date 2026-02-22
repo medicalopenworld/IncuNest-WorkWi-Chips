@@ -10,6 +10,8 @@ Esclavo I2C virtual para control de humidificador. Incluye visualización gráfi
 | `GND`| —         | Referencia de tierra     |
 | `SCL`| Entrada   | Reloj I2C                |
 | `SDA`| Bidireccional | Datos I2C            |
+| `DUTY_OVERRIDE` | Entrada analógica | Duty externo (0..3.3V = 0..95%) |
+| `OVERRIDE_EN` | Entrada digital | Habilita modo override |
 
 ## Controles (Atributos de simulación)
 
@@ -28,6 +30,8 @@ Esclavo I2C virtual para control de humidificador. Incluye visualización gráfi
 | `[0x01, duty]` | Comando explícito para establecer duty cycle (0–95%)           |
 
 El duty cycle máximo se limita a 95 para proteger el hardware.
+
+Si `OVERRIDE_EN=HIGH`, el chip usa `DUTY_OVERRIDE` como duty efectivo (fallback I2C desactivado).
 
 ### Lectura (Master ← Chip)
 
@@ -58,4 +62,3 @@ El chip renderiza un panel visual animado a 20 FPS directamente sobre el compone
 | `COLOR_VAPOR`       | `0xFFFFDDAA` | Partículas de vapor       |
 
 > **Nota:** Wokwi utiliza el formato de color `0xAABBGGRR` (Little Endian) cuando se usa la propiedad `"display"` en el archivo `chip.json`. El canal alfa (A) siempre debe ser `0xFF` para que el píxel sea opaco.
-

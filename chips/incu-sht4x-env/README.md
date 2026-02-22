@@ -8,6 +8,8 @@ Sensor ambiental SHT4x virtual (temperatura y humedad) por I2C.
 - `GND`
 - `SCL`
 - `SDA`
+- `TEMP_OUT` (señal analógica auxiliar para telemetría)
+- `HUM_OUT` (señal analógica auxiliar para telemetría)
 
 ## Controles
 
