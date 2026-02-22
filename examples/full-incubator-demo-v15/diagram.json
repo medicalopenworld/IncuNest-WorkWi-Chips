@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "author": "IncuNest",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "esp32",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-ntc-skin",
+      "id": "ntc",
+      "top": -150,
+      "left": 350,
+      "attrs": { "temperature": "36.5" }
+    },
+    {
+      "type": "chip-incu-sts35-temp",
+      "id": "sts35a",
+      "top": -50,
+      "left": 350,
+      "attrs": { "temperature": "34.0", "address": "74" }
+    },
+    {
+      "type": "chip-incu-sts35-temp",
+      "id": "sts35b",
+      "top": 50,
+      "left": 350,
+      "attrs": { "temperature": "34.0", "address": "75" }
+    },
+    {
+      "type": "chip-incu-sht4x-env",
+      "id": "sht4x",
+      "top": 150,
+      "left": 350,
+      "attrs": { "temperature": "25", "humidity": "50" }
+    },
+    {
+      "type": "chip-incu-shtc3-env",
+      "id": "shtc3",
+      "top": 250,
+      "left": 350,
+      "attrs": { "temperature": "24", "humidity": "45" }
+    },
+    {
+      "type": "chip-incu-ina3221",
+      "id": "ina0",
+      "top": 350,
+      "left": 350,
+      "attrs": { "address": "64" }
+    },
+    {
+      "type": "chip-incu-ina3221",
+      "id": "ina1",
+      "top": 450,
+      "left": 350,
+      "attrs": { "address": "65" }
+    },
+    {
+      "type": "chip-incu-humidifier",
+      "id": "humidifier",
+      "top": -100,
+      "left": -300,
+      "attrs": { "address": "2", "waterLevel": "80" }
+    },
+    {
+      "type": "chip-incu-heater-ssr",
+      "id": "heater",
+      "top": 50,
+      "left": -300,
+      "attrs": { "ambientTemp": "25", "thermalMass": "2" }
+    },
+    {
+      "type": "chip-incu-fan-pwm",
+      "id": "fan",
+      "top": -200,
+      "left": -300,
+      "attrs": { "maxRpm": "3200" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": 200,
+      "left": -300,
+      "attrs": { "volume": "0.1" }
+    },
+    {
+      "type": "chip-incu-door-touch",
+      "id": "door",
+      "top": 300,
+      "left": -300,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-phototherapy",
+      "id": "phototherapy",
+      "top": 400,
+      "left": -300,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-afe4490-spo2",
+      "id": "spo2",
+      "top": -250,
+      "left": 350,
+      "attrs": { "spo2": "97", "heartRate": "120" }
+    },
+    {
+      "type": "chip-incu-sim800c-gprs",
+      "id": "gprs",
+      "top": 500,
+      "left": -300,
+      "attrs": { "signalStrength": "20" }
+    },
+    {
+      "type": "wokwi-neopixel",
+      "id": "statusLed",
+      "top": 500,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "chip-incu-telemetry-reporter",
+      "id": "telemetry",
+      "top": 550,
+      "left": 150,
+      "attrs": {
+        "chamberTemp": "34.2",
+        "skinTemp": "36.6",
+        "humidity": "58",
+        "fanRpm": "1200",
+        "heaterDuty": "42",
+        "doorOpen": "0",
+        "alarm": "0"
+      }
+    },
+    {
+      "type": "chip-incu-display-hmi",
+      "id": "display",
+      "top": 550,
+      "left": 350,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    ["esp32:3V3", "ntc:VCC", "red", []],
+    ["esp32:GND.1", "ntc:GND", "black", []],
+    ["esp32:10", "ntc:OUT", "green", []],
+
+    ["esp32:3V3", "sts35a:VCC", "red", []],
+    ["esp32:GND.1", "sts35a:GND", "black", []],
+    ["esp32:9", "sts35a:SCL", "purple", []],
+    ["esp32:8", "sts35a:SDA", "blue", []],
+
+    ["esp32:3V3", "sts35b:VCC", "red", []],
+    ["esp32:GND.1", "sts35b:GND", "black", []],
+    ["esp32:9", "sts35b:SCL", "purple", []],
+    ["esp32:8", "sts35b:SDA", "blue", []],
+
+    ["esp32:3V3", "sht4x:VCC", "red", []],
+    ["esp32:GND.1", "sht4x:GND", "black", []],
+    ["esp32:9", "sht4x:SCL", "purple", []],
+    ["esp32:8", "sht4x:SDA", "blue", []],
+
+    ["esp32:3V3", "shtc3:VCC", "red", []],
+    ["esp32:GND.1", "shtc3:GND", "black", []],
+    ["esp32:9", "shtc3:SCL", "purple", []],
+    ["esp32:8", "shtc3:SDA", "blue", []],
+
+    ["esp32:3V3", "ina0:VCC", "red", []],
+    ["esp32:GND.1", "ina0:GND", "black", []],
+    ["esp32:9", "ina0:SCL", "purple", []],
+    ["esp32:8", "ina0:SDA", "blue", []],
+
+    ["esp32:3V3", "ina1:VCC", "red", []],
+    ["esp32:GND.1", "ina1:GND", "black", []],
+    ["esp32:9", "ina1:SCL", "purple", []],
+    ["esp32:8", "ina1:SDA", "blue", []],
+
+    ["esp32:3V3", "humidifier:VCC", "red", []],
+    ["esp32:GND.1", "humidifier:GND", "black", []],
+    ["esp32:9", "humidifier:SCL", "purple", []],
+    ["esp32:8", "humidifier:SDA", "blue", []],
+
+    ["esp32:3V3", "heater:VCC", "red", []],
+    ["esp32:GND.1", "heater:GND", "black", []],
+    ["esp32:16", "heater:PWM_IN", "orange", []],
+
+    ["esp32:3V3", "fan:VCC", "red", []],
+    ["esp32:GND.1", "fan:GND", "black", []],
+    ["esp32:12", "fan:PWM_IN", "orange", []],
+    ["esp32:38", "fan:TACH_OUT", "green", []],
+    ["esp32:14", "fan:EN", "yellow", []],
+
+    ["esp32:5", "buzzer:PIN1", "orange", []],
+    ["esp32:GND.1", "buzzer:PIN2", "black", []],
+
+    ["esp32:3V3", "door:VCC", "red", []],
+    ["esp32:GND.1", "door:GND", "black", []],
+    ["esp32:1", "door:OUT", "green", []],
+    ["esp32:2", "door:SEL", "yellow", []],
+
+    ["esp32:3V3", "phototherapy:VCC", "red", []],
+    ["esp32:GND.1", "phototherapy:GND", "black", []],
+    ["esp32:13", "phototherapy:PWM_IN", "cyan", []],
+    ["esp32:14", "phototherapy:EN", "yellow", []],
+
+    ["esp32:3V3", "spo2:VCC", "red", []],
+    ["esp32:GND.1", "spo2:GND", "black", []],
+    ["esp32:21", "spo2:CS", "yellow", []],
+    ["esp32:45", "spo2:ADC_RDY", "white", []],
+    ["esp32:35", "spo2:MOSI", "orange", []],
+    ["esp32:37", "spo2:MISO", "green", []],
+    ["esp32:36", "spo2:SCK", "purple", []],
+
+    ["esp32:3V3", "gprs:VCC", "red", []],
+    ["esp32:GND.1", "gprs:GND", "black", []],
+    ["esp32:47", "gprs:RX", "cyan", []],
+    ["esp32:48", "gprs:TX", "cyan", []],
+
+    ["esp32:7", "statusLed:DIN", "green", []],
+    ["esp32:3V3", "statusLed:VCC", "red", []],
+    ["esp32:GND.1", "statusLed:VSS", "black", []],
+
+    ["esp32:3V3", "telemetry:VCC", "red", []],
+    ["esp32:GND.1", "telemetry:GND", "black", []],
+    ["telemetry:TX", "esp32:TX", "cyan", []],
+
+    ["esp32:3V3", "display:VCC", "red", []],
+    ["esp32:GND.1", "display:GND", "black", []],
+    ["telemetry:TX", "display:RX", "cyan", []]
+  ]
+}
